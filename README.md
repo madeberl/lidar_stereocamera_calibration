@@ -1,5 +1,5 @@
 ## Pylonendetektion in Punktwolken und Bildern ##
-In der Bachelorarbeit soll ein Algorithmus entwickelt werden zur automatischen Detektion von Straßenpylonen in Lidar Punktwolken und Kamerabildern. In einem weiteren Schritt sollen die Korrespondenzen zwischen den Modalitäten gefunden werden.
+In der Bachelorarbeit soll ein Algorithmus entwickelt werden zur automatischen Detektion von Straßenpylonen in Lidar Punktwolken und Kamerabildern. In einem weiteren Schritt sollen die Korrespondenzen zwischen den Modalitäten gefunden werden. Die korrespondierenden Punkte werden anschließend in Folgeprojekten zur Lidar-Kamera Kalibreirung genutzt.
 ![alt text](https://unitbase.de/image/cache/catalog/Verkehr/pylone-leitkegel-mieten-berlin-unitbase-800x800.jpg)
 
 ### Übung 1 ###
