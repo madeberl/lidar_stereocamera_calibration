@@ -6,7 +6,7 @@ In der Bachelorarbeit soll ein Algorithmus entwickelt werden zur automatischen D
 
 * Punktewolke herunterladen z.B. aus dem [Kitty Datensatz](http://www.cvlibs.net/datasets/kitti/raw_data.php)
 * Punktwolke mit numpy einlesen
-* Punktwolke visualisieren (matplotlib, cloud compare, )
+* Punktwolke visualisieren (matplotlib, cloud compare, mesh lab)
 * Grundfläche wie z.B. Straße extrahieren
 
 Grundfläche kann z.B. mit [RANSAC](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.RANSACRegressor.html) bestimmt werden.
