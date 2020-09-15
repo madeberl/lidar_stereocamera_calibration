@@ -7,7 +7,7 @@ In der Bachelorarbeit soll ein Algorithmus entwickelt werden zur automatischen D
 * Punktewolke herunterladen z.B. aus dem [Kitty Datensatz](http://www.cvlibs.net/datasets/kitti/raw_data.php)
 * Punktwolke mit numpy einlesen
 * Punktwolke visualisieren (matplotlib, cloud compare, meshlab, open3d)
-* Hintergrund bestimmen, um freistehende Objekte wie Kegel zu extrahieren (z.B. mit Open3d (compute_point_cloud_distance)). Beispiel [Personendetektion](https://www.blickfeld.com/de/blog/objektdetektion/)
+* Hintergrund bestimmen, um freistehende Objekte wie Kegel zu extrahieren (z.B. mit [Open3d](http://www.open3d.org/docs/release/index.html) (compute_point_cloud_distance)). Beispiel [Personendetektion](https://www.blickfeld.com/de/blog/objektdetektion/)
 
 Wichtige Hilfsfunktionen (z.B. Normalen bestimmen) sind im Repository pybind11_pcl (Python bindings für die PCL library) zu finden.
 
