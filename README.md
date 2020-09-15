@@ -6,8 +6,10 @@ In der Bachelorarbeit soll ein Algorithmus entwickelt werden zur automatischen D
 
 * Punktewolke herunterladen z.B. aus dem [Kitty Datensatz](http://www.cvlibs.net/datasets/kitti/raw_data.php)
 * Punktwolke mit numpy einlesen
-* Punktwolke visualisieren (matplotlib, cloud compare, mesh lab)
-* Grundfläche wie z.B. Straße extrahieren
+* Punktwolke visualisieren (matplotlib, cloud compare, meshlab, open3d)
+* Hintergrund bestimmen, um freistehende Objekte wie Kegel zu extrahieren (z.B. mit Open3d (compute_point_cloud_distance)). Beispiel [Personendetektion](https://www.blickfeld.com/de/blog/objektdetektion/)
 
-Grundfläche kann z.B. mit [RANSAC](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.RANSACRegressor.html) bestimmt werden.
 Wichtige Hilfsfunktionen (z.B. Normalen bestimmen) sind im Repository pybind11_pcl (Python bindings für die PCL library) zu finden.
+
+### Thesis ###
+1. Datensatz aufnehmen (z.B. Pilonen im Innenhof der HTWG aufstellen)
