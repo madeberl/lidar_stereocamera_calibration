@@ -11,5 +11,12 @@ In der Bachelorarbeit soll ein Algorithmus entwickelt werden zur automatischen D
 
 Wichtige Hilfsfunktionen (z.B. Normalen bestimmen) sind im Repository pybind11_pcl (Python bindings für die PCL library) zu finden.
 
+### Übung 2 ###
+* Pilonendetektion in den Bildern, mittels Bildverarbeitungsalgorithmik
+Literatur:
+1. ![Real-time Traffic Cone Detection for Autonomous Vehicle](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=7260215)
+2. Lernender Ansatz, evtl. nützliche post-processing Schritte ![Real-time 3D Traffic Cone Detection for Autonomous Driving](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8814089)
+
+
 ### Thesis ###
 1. Datensatz aufnehmen (z.B. Pilonen im Innenhof der HTWG aufstellen)
