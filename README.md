@@ -15,7 +15,7 @@ Wichtige Hilfsfunktionen (z.B. Normalen bestimmen) sind im Repository pybind11_p
 * Pilonendetektion in den Bildern, mittels Bildverarbeitungsalgorithmik
 Literatur:
 1. ![Real-time Traffic Cone Detection for Autonomous Vehicle](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=7260215)
-2. Lernender Ansatz, evtl. nützliche post-processing Schritte ![Real-time 3D Traffic Cone Detection for Autonomous Driving](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8814089)
+2. Lernender Ansatz (Muss nicht verstanden werden aber evtl. nützliche post-processing Schritte) ![Real-time 3D Traffic Cone Detection for Autonomous Driving](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8814089)
 
 
 ### Thesis ###
