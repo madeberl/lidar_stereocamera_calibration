@@ -12,20 +12,24 @@ def convert_kitti_bin_to_pcd(bin, name):
             x, y, z, intensity = struct.unpack("ffff", byte)
             if 4 <= x <= 30 and -5 <= y <= 20:
                 list_pcd.append([x, y, z])
-            # list_pcd.append([-y, z, -x])
+                # list_pcd.append([-y, z, -x])
             byte = f.read(size_float * 4)
     np_pcd = np.asarray(list_pcd)
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(np_pcd)
-    o3d.io.write_point_cloud(name + ".ply", pcd)
+    o3d.io.write_point_cloud("data/" + name + ".ply", pcd)
     return pcd
 
 
 def compute_distance(data, data_person):
-    dists = data.compute_point_cloud_distance(data_person)
+    threshold = ([0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
+    i = 0.1
+    # for i in threshold:
+    dists = data_person.compute_point_cloud_distance(data)
     dists = np.asarray(dists)
-    ind = np.where(dists < 0.4)[0]
-    data_without_person = data.select_by_index(ind)
+    ind = np.where(dists > i)[0]
+    data_without_person = data_person.select_by_index(ind)
+    o3d.io.write_point_cloud("data/distance_" + str(i) + ".ply", data_without_person)
     return data_without_person
 
 
@@ -37,6 +41,5 @@ if __name__ == "__main__":
     pcd = convert_kitti_bin_to_pcd(file, name[0])
     pcd_person = convert_kitti_bin_to_pcd(file_person, name2[0])
     distance = compute_distance(pcd, pcd_person)
-    o3d.io.write_point_cloud("distance.ply", distance)
-    # o3d.visualization.draw_geometries([distance])
-    # o3d.visualization.draw_geometries([pcd_person])
+
+    # o3d.visualization.draw_geometries([distance], width=800, height=800)
