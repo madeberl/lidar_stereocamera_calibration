@@ -2,8 +2,6 @@ import numpy as np
 import open3d as o3d
 import struct
 
-from typing import List
-
 
 def convert_kitti_bin_to_pcd(bin, name):
     size_float = 4
@@ -13,8 +11,8 @@ def convert_kitti_bin_to_pcd(bin, name):
         while byte:
             x, y, z, intensity = struct.unpack("ffff", byte)
             if 4 <= x <= 30 and -5 <= y <= 5:
-                list_pcd.append([x, y, z])
-                # list_pcd.append([-y, z, -x])
+                # list_pcd.append([x, y, z])
+                list_pcd.append([-y, z, -x])
             byte = f.read(size_float * 4)
     np_pcd = np.asarray(list_pcd)
     pcd = o3d.geometry.PointCloud()
@@ -59,12 +57,12 @@ def statistical_outlier(cloud):
 
 def bounding_box(human, string):
     human = human.remove_non_finite_points()
-    aligned = human.get_axis_aligned_bounding_box()
-    aligned.color = (1, 0, 0)
+    #aligned = human.get_axis_aligned_bounding_box()
+    #aligned.color = (1, 0, 0)
     oriented = human.get_oriented_bounding_box()
     oriented.color = (0, 1, 0)
     # custom_draw_geometry_with_rotation(human, aligned, oriented)
-    o3d.visualization.draw_geometries([human, aligned, oriented], window_name=string,
+    o3d.visualization.draw_geometries([human, oriented], window_name=string,
                                       height=800, width=800)
 
 
@@ -72,18 +70,18 @@ def display_inlier_outlier(cloud, ind, string):
     inlier_cloud = cloud.select_by_index(ind)
     outlier_cloud = cloud.select_by_index(ind, invert=True)
 
-    # print("Showing outliers (red) and inliers (gray): ")
-    # outlier_cloud.paint_uniform_color([1, 0, 0])
-    # inlier_cloud.paint_uniform_color([0.8, 0.8, 0.8])
-    # o3d.visualization.draw_geometries([inlier_cloud, outlier_cloud],
-    #                                   window_name=string, height=800, width=800)
+    print("Showing outliers (red) and inliers (gray): ")
+    outlier_cloud.paint_uniform_color([1, 0, 0])
+    inlier_cloud.paint_uniform_color([0.8, 0.8, 0.8])
+    o3d.visualization.draw_geometries([inlier_cloud, outlier_cloud],
+                                      window_name=string, height=800, width=800)
     return inlier_cloud
 
 
 def custom_draw_geometry_with_rotation(pcd, aligned, oriented):
     def rotate_view(vis):
         ctr = vis.get_view_control()
-        ctr.rotate(0.0, 0.0)
+        ctr.rotate(5.0, 0.0)
         return False
 
     o3d.visualization.draw_geometries_with_animation_callback([pcd, aligned, oriented],
