@@ -30,3 +30,4 @@ Literatur:
 1. Datensatz aufnehmen 
  * Verschiedene Objekte Organisieren z.B. Gummiball, Umzugskarton, Straßenpilonen.
  * Datensatz mit verschiedenen Objekten in verschiedenen Distanzen aufnehmen.
+2. Freistellen der Objekte, Clustern der Ebene, Ebenenschätzung mit RANSAC, Kugelschätzung mit RANSAC
