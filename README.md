@@ -27,4 +27,6 @@ Literatur:
 -	Mit open3d bounding box für Objekt bauen
 
 ### Thesis ###
-1. Datensatz aufnehmen (z.B. Pilonen im Innenhof der HTWG aufstellen)
+1. Datensatz aufnehmen 
+ * Verschiedene Objekte Organisieren z.B. Gummiball, Umzugskarton, Straßenpilonen.
+ * Datensatz mit verschiedenen Objekten in verschiedenen Distanzen aufnehmen.
