@@ -1,6 +1,5 @@
-## Pylonendetektion in Punktwolken und Bildern ##
-In der Bachelorarbeit soll ein Algorithmus entwickelt werden zur automatischen Detektion von Straßenpylonen in Lidar Punktwolken und Kamerabildern. In einem weiteren Schritt sollen die Korrespondenzen zwischen den Modalitäten gefunden werden. Die korrespondierenden Punkte werden anschließend in Folgeprojekten zur Lidar-Kamera Kalibreirung genutzt.
-![alt text](https://unitbase.de/image/cache/catalog/Verkehr/pylone-leitkegel-mieten-berlin-unitbase-800x800.jpg)
+## Objektdetektion in Punktwolken und Bildern ##
+In der Bachelorarbeit soll ein Algorithmus entwickelt werden zur automatischen Detektion von Kugeln und Würfeln in Lidar Punktwolken und Kamerabildern. In einem weiteren Schritt sollen die Korrespondenzen zwischen den Modalitäten gefunden werden. Die korrespondierenden Punkte werden anschließend in Folgeprojekten zur Lidar-Kamera Kalibreirung genutzt.
 
 ### Übung 1 ###
 
@@ -30,4 +29,8 @@ Literatur:
 1. Datensatz aufnehmen 
  * Verschiedene Objekte Organisieren z.B. Gummiball, Umzugskarton, Straßenpilonen.
  * Datensatz mit verschiedenen Objekten in verschiedenen Distanzen aufnehmen.
-2. Freistellen der Objekte, Clustern der Ebene, Ebenenschätzung mit RANSAC, Kugelschätzung mit RANSAC
+2. Markante Punkte detektieren
+* Freistellen der Objekte mit Differenzbildung
+* Normalen bestimmen und Fläcken Clustern mit k-means
+* Flächenschätzung mit RANSAC, Kugelschätzung mit RANSAC
+* Eckpunkte des Würfels bzw. Zentroid der Kugel bestimmen.
