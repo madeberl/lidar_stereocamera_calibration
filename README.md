@@ -17,10 +17,17 @@ Literatur:
 1. ![Real-time Traffic Cone Detection for Autonomous Vehicle](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=7260215)
 2. Lernender Ansatz (Muss nicht verstanden werden aber evtl. nützliche post-processing Schritte) ![Real-time 3D Traffic Cone Detection for Autonomous Driving](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8814089)
 
+### Übung 3 ###
+* Eigene Literaturrecherche
+* Datensatz mit natürlichen Bildern suchen und Algorithmus aus Real-time Traffic Cone Detection for Autonomous Vehicle versuchen anzuwenden.
+
 ## Aufgaben ##
 -	Datensatz suchen mit Objekten und ohne Objekte für Differenzbildung finden
 -	Compute_point_cloud_distance
 -	Mit open3d bounding box für Objekt bauen
 
 ### Thesis ###
-1. Datensatz aufnehmen (z.B. Pilonen im Innenhof der HTWG aufstellen)
+1. Datensatz aufnehmen 
+ * Verschiedene Objekte Organisieren z.B. Gummiball, Umzugskarton, Straßenpilonen.
+ * Datensatz mit verschiedenen Objekten in verschiedenen Distanzen aufnehmen.
+2. Freistellen der Objekte, Clustern der Ebene, Ebenenschätzung mit RANSAC, Kugelschätzung mit RANSAC
