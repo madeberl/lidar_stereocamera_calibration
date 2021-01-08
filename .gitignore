@@ -3,3 +3,4 @@
 .idea
 *.pdf
 *_data
+__pycache__
