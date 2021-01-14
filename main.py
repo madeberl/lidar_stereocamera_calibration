@@ -197,18 +197,30 @@ def getTrace(x, y, z, c, label, s=2):
     return trace_points
 
 
-def getMesh(xy, z, c, label):
-    surface_points = go.Mesh3d(
-        x=xy[:, 0], y=xy[:, 1], z=z,
-        color=c,
-        name=label
+def getMesh(x, y, z, c, label):
+    surface_points = go.Scatter3d(
+        x=x, y=y, z=z,
+        line=dict(color=c, width=4),
+        name=label,
+        mode='lines'
     )
     return surface_points
 
 
 def equation(plane_mod, xy):
+    x = (-plane_mod[3] - plane_mod[1] * xy[:, 1] - plane_mod[2] * xy[:, 2]) / plane_mod[0]
+    y = (-plane_mod[3] - plane_mod[0] * xy[:, 0] - plane_mod[2] * xy[:, 2]) / plane_mod[1]
     z = (-plane_mod[3] - plane_mod[0] * xy[:, 0] - plane_mod[1] * xy[:, 1]) / plane_mod[2]
-    return z
+    return x, y, z
+
+
+def test_function(plane1, plane2, plane3):
+    left_side = [plane1[:3]] + [plane2[:3]] + [plane3[:3]]
+    right_side = [[-plane1[3]]] + [[-plane2[3]]] + [[-plane3[3]]]
+    np.linalg.inv(left_side).dot(right_side)
+    schnittpunkt = np.linalg.solve(left_side, right_side)
+    print("Schnittpunkt:", schnittpunkt)
+    return schnittpunkt
 
 
 def showPointCloud(object, name, show_normal):
@@ -267,15 +279,35 @@ if __name__ == "__main__":
     r_in, r_out, plane_model_r = ransac(right, 0.002, 3, 500)
     l_in, l_out, plane_model_l = ransac(left, 0.002, 3, 500)
     t_in, t_out, plane_model_t = ransac(top, 0.002, 3, 500)
-    # print(plane_model_r[0])
+    x_r, y_r, z_r = equation(plane_model_r, r_in)
+    x_l, y_l, z_l = equation(plane_model_l, l_in)
+    x_t, y_t, z_t = equation(plane_model_t, t_in)
 
-    z_r = equation(plane_model_r, r_in)
-    z_l = equation(plane_model_l, l_in)
-    z_t = equation(plane_model_t, t_in)
+    schnittpunkt = test_function(plane_model_r, plane_model_l, plane_model_t)
 
-    mesh_1 = getMesh(r_in, z_r, c='lightgreen', label='mesh_1')
-    mesh_2 = getMesh(l_in, z_l, c='lightsalmon', label='mesh_2')
-    mesh_3 = getMesh(t_in, z_t, c='lightsteelblue', label='mesh_3')
+    plane_model_r_new = np.divide(plane_model_r[:3], plane_model_r[3])
+    plane_model_l_new = np.divide(plane_model_l[:3], plane_model_l[3])
+    plane_model_t_new = np.divide(plane_model_t[:3], plane_model_t[3])
+    numbers = np.arange(0, 2).reshape((-1, 1))
+    lines_r = np.multiply(plane_model_r, numbers)
+    lines_l = np.multiply(plane_model_l, numbers)
+    lines_t = np.multiply(plane_model_t, numbers)
+    schnittpunkt1 = getTrace(schnittpunkt[0], schnittpunkt[1], schnittpunkt[2], s=8, c='yellow', label='Schnittpunkt')
+    print(lines_r)
+
+    # mesh_1 = getMesh(x_r, y_r, z_r, c='lightgreen', label='mesh_1')
+    # mesh_2 = getMesh(x_l, y_l, z_l, c='lightsalmon', label='mesh_2')
+    # mesh_3 = getMesh(x_t, y_t, z_t, c='lightsteelblue', label='mesh_3')
+
+    mesh_1 = getMesh(lines_r[:, 0], lines_r[:, 1], lines_r[:, 2], c='lightgreen', label='mesh_1')
+    mesh_2 = getMesh(lines_l[:, 0], lines_l[:, 1], lines_l[:, 2], c='lightsalmon', label='mesh_2')
+    mesh_3 = getMesh(lines_t[:, 0], lines_t[:, 1], lines_t[:, 2], c='lightsteelblue', label='mesh_3')
+
+    fig = go.Figure()
+    fig.add_trace(mesh_1)
+    fig.add_trace(mesh_2)
+    fig.add_trace(mesh_3)
+    fig.show()
 
     inlier_1 = getTrace(r_in[:, 0], r_in[:, 1], r_in[:, 2],
                         s=4, c='green', label='inliers_1')
@@ -291,7 +323,7 @@ if __name__ == "__main__":
                          s=4, c='red', label='outliers_3')
     showGraph(
         "Oberflächen_ransac",
-        "Z", [complete_p.x.min(), complete_p.x.max()],
+        "Z", [schnittpunkt1.x.min(), complete_p.x.max()],
         "X", [complete_p.y.min(), complete_p.y.max()],
-        "Y", [complete_p.z.min() - 0.01, complete_p.z.max() + 0.01],
-        [inlier_1, outlier_1, inlier_2, outlier_2, inlier_3, outlier_3, mesh_1, mesh_2, mesh_3])
+        "Y", [complete_p.z.min(), complete_p.z.max()],
+        [schnittpunkt1, inlier_1, outlier_1, inlier_2, outlier_2, inlier_3, outlier_3])  # , mesh_1, mesh_2, mesh_3])
