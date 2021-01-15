@@ -1,10 +1,9 @@
-import math
-import os
-from tkinter.filedialog import askopenfilename
+# import os
+# from tkinter.filedialog import askopenfilename
 from tkinter import Tk
 from sklearn.cluster import KMeans
-from sklearn import linear_model
-from pyntcloud import PyntCloud
+# from sklearn import linear_model
+# from pyntcloud import PyntCloud
 import pandas as pd
 import numpy as np
 import open3d as o3d
@@ -124,48 +123,44 @@ def normal_estimation(downpcd):
 def kmeans(pc):
     normals = np.asarray(pc.normals)
     points = np.asarray(pc.points)
-    kmeans = KMeans(n_clusters=3, init='k-means++', max_iter=1000, n_init=10, random_state=3)
+    kmeans = KMeans(n_clusters=3, init='k-means++', max_iter=1000, n_init=10, random_state=10)
 
     y_kmeans = kmeans.fit_predict(normals)
-
     # visualising the clusters
-    centroids = getTrace(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], kmeans.cluster_centers_[:, 2],
-                         s=8, c='yellow', label='Centroids')
+    # centroids = getTrace(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], kmeans.cluster_centers_[:, 2],
+    #                     s=8, c='yellow', label='Centroids')
 
     t1 = getTrace(points[y_kmeans == 0, 0], points[y_kmeans == 0, 1], points[y_kmeans == 0, 2], s=4, c='red',
-                  label='1')  # match with red=1 initial class
+                  label='Top')  # match with red=1 initial class
     t2 = getTrace(points[y_kmeans == 1, 0], points[y_kmeans == 1, 1], points[y_kmeans == 1, 2], s=4, c='green',
-                  label='2')  # match with green=3 initial class
+                  label='Left')  # match with green=3 initial class
     t3 = getTrace(points[y_kmeans == 2, 0], points[y_kmeans == 2, 1], points[y_kmeans == 2, 2], s=4, c='blue',
-                  label='3')  # match with blue=2 initial class
+                  label='Right')  # match with blue=2 initial class
 
     z = points[:, 0]
     x = points[:, 1]
     y = points[:, 2]
     showGraph(
         "Oberflächen_kmean",
-        "Z", [min(z), max(z)], "X", [min(x), max(x)], "Y", [min(y), max(y)],
-        [t1, t2, t3, centroids])
+        "Z", "X", "Y",
+        [t1, t2, t3])  # , centroids])
 
-    right_p = np.stack((points[y_kmeans == 0, 0], points[y_kmeans == 0, 1], points[y_kmeans == 0, 2]), axis=1)
+    top_p = np.stack((points[y_kmeans == 0, 0], points[y_kmeans == 0, 1], points[y_kmeans == 0, 2]), axis=1)
     left_p = np.stack((points[y_kmeans == 1, 0], points[y_kmeans == 1, 1], points[y_kmeans == 1, 2]), axis=1)
-    top_p = np.stack((points[y_kmeans == 2, 0], points[y_kmeans == 2, 1], points[y_kmeans == 2, 2]), axis=1)
+    right_p = np.stack((points[y_kmeans == 2, 0], points[y_kmeans == 2, 1], points[y_kmeans == 2, 2]), axis=1)
 
     right_pc = toPointCloud(right_p)
     left_pc = toPointCloud(left_p)
     top_pc = toPointCloud(top_p)
-    # print("Right", np.asarray(right_pc.points))
-    # print("left", np.asarray(left_pc.points))
-    # print("top", np.asarray(top_pc.points))
     return right_pc, left_pc, top_pc
 
 
-def ransac(plane, threshold, n, i):
+def ransac(plane, threshold, n, i, name):
     plane_model, inliers = plane.segment_plane(distance_threshold=threshold,
                                                ransac_n=n,
                                                num_iterations=i)
     [a, b, c, d] = plane_model
-    print(f"Plane equation: {a:.2f}x + {b:.2f}y + {c:.2f}z + {d:.2f} = 0")
+    print(f"Plane equation {name}: {a:.2f}x + {b:.2f}y + {c:.2f}z + {d:.2f} = 0")
     inlier_cloud = plane.select_by_index(inliers)
     outlier_cloud = plane.select_by_index(inliers, invert=True)
     inlier_cloud = np.asarray(inlier_cloud.points)
@@ -200,27 +195,59 @@ def getTrace(x, y, z, c, label, s=2):
 def getMesh(x, y, z, c, label):
     surface_points = go.Scatter3d(
         x=x, y=y, z=z,
-        line=dict(color=c, width=4),
+        line=dict(color=c, width=8),
         name=label,
         mode='lines'
     )
     return surface_points
 
 
-def equation(plane_mod, xy):
-    x = (-plane_mod[3] - plane_mod[1] * xy[:, 1] - plane_mod[2] * xy[:, 2]) / plane_mod[0]
-    y = (-plane_mod[3] - plane_mod[0] * xy[:, 0] - plane_mod[2] * xy[:, 2]) / plane_mod[1]
-    z = (-plane_mod[3] - plane_mod[0] * xy[:, 0] - plane_mod[1] * xy[:, 1]) / plane_mod[2]
-    return x, y, z
+def equation(plane1, plane2, plane3, in1, in2, in3, out1, out2, out3):
+    global a, b, c, a1, a2, b2, b1, c1, c2
+    plane = [plane1] + [plane2] + [plane3]
+    in_a = [in1] + [in2] + [in3]
+    out_a = [out1] + [out2] + [out3]
+    for i, val in enumerate(plane):
+        if plane[i][0] < 0 and plane[i][1] < 0:
+            a = plane[i]
+            a1 = in_a[i]
+            a2 = out_a[i]
+        elif plane[i][0] > 0 and plane[i][1] < 0:
+            b = plane[i]
+            b1 = in_a[i]
+            b2 = out_a[i]
+        elif plane[i][0] > 0 and plane[i][1] > 0:
+            c = plane[i]
+            c1 = in_a[i]
+            c2 = out_a[i]
+    return a, b, c, a1, b1, c1, a2, b2, c2
 
 
 def test_function(plane1, plane2, plane3):
     left_side = [plane1[:3]] + [plane2[:3]] + [plane3[:3]]
     right_side = [[-plane1[3]]] + [[-plane2[3]]] + [[-plane3[3]]]
-    np.linalg.inv(left_side).dot(right_side)
+    # np.linalg.inv(left_side).dot(right_side)
     schnittpunkt = np.linalg.solve(left_side, right_side)
+    # print(np.allclose(np.dot(left_side, schnittpunkt), right_side))
     print("Schnittpunkt:", schnittpunkt)
+    print("Testgleichung Plane 1: ",
+          (plane1[0] * schnittpunkt[0]) + (plane1[1] * schnittpunkt[1]) + (plane1[2] * schnittpunkt[2]) + plane1[3])
+    print("Testgleichung Plane 2: ",
+          (plane2[0] * schnittpunkt[0]) + (plane2[1] * schnittpunkt[1]) + (plane2[2] * schnittpunkt[2]) + plane2[3])
+    print("Testgleichung Plane 3: ",
+          (plane3[0] * schnittpunkt[0]) + (plane3[1] * schnittpunkt[1]) + (plane3[2] * schnittpunkt[2]) + plane3[3])
     return schnittpunkt
+
+
+def intersection(equation, cm, intersect):
+    global s
+    a = np.multiply(np.array(equation[:3]).reshape(-1, 1), cm)
+    if equation[0] < 0:
+        s = np.subtract(intersect, a)
+    else:
+        s = np.add(intersect, a)
+    print("Schnittpunkt", s)
+    return s
 
 
 def showPointCloud(object, name, show_normal):
@@ -232,12 +259,12 @@ def showPointCloud(object, name, show_normal):
                                       point_show_normal=show_normal)
 
 
-def showGraph(title, x_colname, x_range, y_colname, y_range, z_colname, z_range, traces):
+def showGraph(title, x_colname, y_colname, z_colname, traces):
     layout = go.Layout(
         scene=dict(
-            xaxis=dict(title=x_colname, range=x_range),
-            yaxis=dict(title=y_colname, range=y_range),
-            zaxis=dict(title=z_colname, range=z_range)
+            xaxis=dict(title=x_colname, autorange=True),
+            yaxis=dict(title=y_colname, autorange=True),
+            zaxis=dict(title=z_colname, autorange=True)
         )
     )
 
@@ -276,54 +303,51 @@ if __name__ == "__main__":
     # elbow_method(normals_estimated)
     right, left, top = kmeans(normals_estimated)
 
-    r_in, r_out, plane_model_r = ransac(right, 0.002, 3, 500)
-    l_in, l_out, plane_model_l = ransac(left, 0.002, 3, 500)
-    t_in, t_out, plane_model_t = ransac(top, 0.002, 3, 500)
-    x_r, y_r, z_r = equation(plane_model_r, r_in)
-    x_l, y_l, z_l = equation(plane_model_l, l_in)
-    x_t, y_t, z_t = equation(plane_model_t, t_in)
+    a_in, a_out, plane_model_a = ransac(right, 0.001, 3, 500, "a")
+    b_in, b_out, plane_model_b = ransac(left, 0.001, 3, 500, "b")
+    c_in, c_out, plane_model_c = ransac(top, 0.001, 3, 500, "c")
+    plane_model_t, plane_model_l, plane_model_r, t_in, l_in, r_in, t_out, l_out, r_out = equation(
+        plane_model_a, plane_model_b, plane_model_c,
+        a_in, b_in, c_in,
+        a_out, b_out, c_out)
 
     schnittpunkt = test_function(plane_model_r, plane_model_l, plane_model_t)
 
-    plane_model_r_new = np.divide(plane_model_r[:3], plane_model_r[3])
-    plane_model_l_new = np.divide(plane_model_l[:3], plane_model_l[3])
-    plane_model_t_new = np.divide(plane_model_t[:3], plane_model_t[3])
-    numbers = np.arange(0, 2).reshape((-1, 1))
-    lines_r = np.multiply(plane_model_r, numbers)
-    lines_l = np.multiply(plane_model_l, numbers)
-    lines_t = np.multiply(plane_model_t, numbers)
-    schnittpunkt1 = getTrace(schnittpunkt[0], schnittpunkt[1], schnittpunkt[2], s=8, c='yellow', label='Schnittpunkt')
-    print(lines_r)
+    schnittpunkt2 = intersection(plane_model_t, 0.2, schnittpunkt)
+    schnittpunkt3 = intersection(plane_model_l, 0.45, schnittpunkt)
+    schnittpunkt4 = intersection(plane_model_r, 0.35, schnittpunkt)
 
-    # mesh_1 = getMesh(x_r, y_r, z_r, c='lightgreen', label='mesh_1')
-    # mesh_2 = getMesh(x_l, y_l, z_l, c='lightsalmon', label='mesh_2')
-    # mesh_3 = getMesh(x_t, y_t, z_t, c='lightsteelblue', label='mesh_3')
+    schnittpunkt1t = getTrace(schnittpunkt[0], schnittpunkt[1], schnittpunkt[2], s=6, c='blue',
+                              label='Schnittpunkt Mitte')
+    schnittpunkt2t = getTrace(schnittpunkt2[0], schnittpunkt2[1], schnittpunkt2[2], s=6, c='blue',
+                              label='Schnittpunkt Unten')
+    schnittpunkt3t = getTrace(schnittpunkt3[0], schnittpunkt3[1], schnittpunkt3[2], s=6, c='blue',
+                              label='Schnittpunkt Rechts')
+    schnittpunkt4t = getTrace(schnittpunkt4[0], schnittpunkt4[1], schnittpunkt4[2], s=6, c='blue',
+                              label='Schnittpunkt Links')
 
-    mesh_1 = getMesh(lines_r[:, 0], lines_r[:, 1], lines_r[:, 2], c='lightgreen', label='mesh_1')
-    mesh_2 = getMesh(lines_l[:, 0], lines_l[:, 1], lines_l[:, 2], c='lightsalmon', label='mesh_2')
-    mesh_3 = getMesh(lines_t[:, 0], lines_t[:, 1], lines_t[:, 2], c='lightsteelblue', label='mesh_3')
+    line_b = np.concatenate((schnittpunkt, schnittpunkt2), axis=1)
+    line_r = np.concatenate((schnittpunkt, schnittpunkt3), axis=1)
+    line_l = np.concatenate((schnittpunkt, schnittpunkt4), axis=1)
 
-    fig = go.Figure()
-    fig.add_trace(mesh_1)
-    fig.add_trace(mesh_2)
-    fig.add_trace(mesh_3)
-    fig.show()
+    mesh_1 = getMesh(line_b[0], line_b[1], line_b[2], c='lightgreen', label='mesh_1')
+    mesh_2 = getMesh(line_r[0], line_r[1], line_r[2], c='lightsalmon', label='mesh_2')
+    mesh_3 = getMesh(line_l[0], line_l[1], line_l[2], c='lightsteelblue', label='mesh_3')
 
-    inlier_1 = getTrace(r_in[:, 0], r_in[:, 1], r_in[:, 2],
-                        s=4, c='green', label='inliers_1')
-    outlier_1 = getTrace(r_out[:, 0], r_out[:, 1], r_out[:, 2],
-                         s=4, c='red', label='outliers_1')
+    inlier_1 = getTrace(t_in[:, 0], t_in[:, 1], t_in[:, 2],
+                        s=4, c='green', label='Top inliers')
+    # outlier_1 = getTrace(t_out[:, 0], t_out[:, 1], t_out[:, 2],
+    #                     s=4, c='red', label='Top outliers')
     inlier_2 = getTrace(l_in[:, 0], l_in[:, 1], l_in[:, 2],
-                        s=4, c='green', label='inliers_2')
-    outlier_2 = getTrace(l_out[:, 0], l_out[:, 1], l_out[:, 2],
-                         s=4, c='red', label='outliers_2')
-    inlier_3 = getTrace(t_in[:, 0], t_in[:, 1], t_in[:, 2],
-                        s=4, c='green', label='inliers_3')
-    outlier_3 = getTrace(t_out[:, 0], t_out[:, 1], t_out[:, 2],
-                         s=4, c='red', label='outliers_3')
+                        s=4, c='green', label='Left inliers')
+    # outlier_2 = getTrace(l_out[:, 0], l_out[:, 1], l_out[:, 2],
+    #                     s=4, c='red', label='Left outliers')
+    inlier_3 = getTrace(r_in[:, 0], r_in[:, 1], r_in[:, 2],
+                        s=4, c='green', label='Right inliers')
+    # outlier_3 = getTrace(r_out[:, 0], r_out[:, 1], r_out[:, 2],
+    #                     s=4, c='red', label='Right outliers')
     showGraph(
         "Oberflächen_ransac",
-        "Z", [schnittpunkt1.x.min(), complete_p.x.max()],
-        "X", [complete_p.y.min(), complete_p.y.max()],
-        "Y", [complete_p.z.min(), complete_p.z.max()],
-        [schnittpunkt1, inlier_1, outlier_1, inlier_2, outlier_2, inlier_3, outlier_3])  # , mesh_1, mesh_2, mesh_3])
+        "Z", "X", "Y",
+        [schnittpunkt1t, schnittpunkt2t, schnittpunkt3t, schnittpunkt4t, inlier_1, inlier_2, inlier_3,
+         mesh_1, mesh_2, mesh_3])  # outlier_1, outlier_2, outlier_3])
