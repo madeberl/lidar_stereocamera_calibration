@@ -1,14 +1,15 @@
-from tkinter import Tk
 from sklearn.cluster import KMeans
 import numpy as np
 import open3d as o3d
 import struct
-import matplotlib.pyplot as plt
+import time
+from plotly.subplots import make_subplots
 import plotly.graph_objs as go
+from progressbar import progressbar
 
 
 def main(pcd, pcd_object, threshold, name, threshold_ransac):
-    object_isolated = compute_distance(pcd, pcd_object, threshold, name)
+    object_isolated = compute_distance(pcd, pcd_object, threshold)
     # showPointCloud(object_isolated, "lidar", False)
     normals_estimated = normal_estimation(object_isolated)
     right, left, top = kmeans(normals_estimated)
@@ -44,51 +45,12 @@ def main(pcd, pcd_object, threshold, name, threshold_ransac):
     point_lt1, point_lt2, vektor_lt = plane_intersect(plane_model_l, plane_model_t)
     point_rl1, point_rl2, vektor_rl = plane_intersect(plane_model_r, plane_model_l)
 
-    schnittpunkt = finde_intersection(plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 1")
-    schnittpunkt2 = intersection(vektor_rl, 0.4, schnittpunkt)
-    schnittpunkt3 = intersection(vektor_rt, -0.35, schnittpunkt)
-    schnittpunkt4 = intersection(vektor_lt, -0.45, schnittpunkt)
-
-    schnittpunkt5 = intersection(vektor_lt, -0.45, schnittpunkt3)
-    schnittpunkt6 = intersection(vektor_lt, -0.45, schnittpunkt2)
-    schnittpunkt7 = intersection(vektor_rt, -0.35, schnittpunkt2)
-    s_all = np.concatenate((schnittpunkt, schnittpunkt2, schnittpunkt3, schnittpunkt4, schnittpunkt5, schnittpunkt6,
-                            schnittpunkt7))
-    # test_function(schnittpunkt2, plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 2")
-    # test_function(schnittpunkt3, plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 3")
-    # test_function(schnittpunkt4, plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 4")
-    # test_function(schnittpunkt5, plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 5")
-    # test_function(schnittpunkt6, plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 6")
-    # test_function(schnittpunkt7, plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 7")
     w1 = find_winkel(vektor_rt, vektor_lt, f"R + L {name}")
     w2 = find_winkel(vektor_rl, vektor_rt, f"T + L {name}")
     w3 = find_winkel(vektor_rl, vektor_lt, f"R + T {name}")
-    # schnittpunktt = schnittpunkt.reshape(1, 3)
-    # schnittpunkt2t = schnittpunkt2.reshape(1, 3)
-    # schnittpunkt3t = schnittpunkt3.reshape(1, 3)
-    # schnittpunkt4t = schnittpunkt4.reshape(1, 3)
-    line_b = np.append(schnittpunkt, schnittpunkt2, axis=0)
-    line_r = np.append(schnittpunkt, schnittpunkt3, axis=0)
-    line_l = np.append(schnittpunkt, schnittpunkt4, axis=0)
+    w = np.array([[w1, w2, w3]])
 
-    mesh_1 = getMesh(line_b[:, 0], line_b[:, 1], line_b[:, 2], c='lightgreen', label=w3)
-    mesh_2 = getMesh(line_r[:, 0], line_r[:, 1], line_r[:, 2], c='lightsalmon', label=w2)
-    mesh_3 = getMesh(line_l[:, 0], line_l[:, 1], line_l[:, 2], c='lightsteelblue', label=w1)
-
-    inlier_1 = getTrace(t_in[:, 0], t_in[:, 1], t_in[:, 2],
-                        s=4, c='green', label=f'Top inliers {name}')
-    # outlier_1 = getTrace(t_out[:, 0], t_out[:, 1], t_out[:, 2],
-    #                     s=4, c='red', label='Top outliers')
-    inlier_2 = getTrace(l_in[:, 0], l_in[:, 1], l_in[:, 2],
-                        s=4, c='green', label=f'Left inliers {name}')
-    # outlier_2 = getTrace(l_out[:, 0], l_out[:, 1], l_out[:, 2],
-    #                     s=4, c='red', label='Left outliers')
-    inlier_3 = getTrace(r_in[:, 0], r_in[:, 1], r_in[:, 2],
-                        s=4, c='green', label=f'Right inliers {name}')
-    # outlier_3 = getTrace(r_out[:, 0], r_out[:, 1], r_out[:, 2],
-    #                     s=4, c='red', label='Right outliers')
-
-    return s_all, mesh_1, mesh_2, mesh_3, r_in, l_in, t_in
+    return w
 
 
 def convert_kitti_bin_to_pcd(bin, name):
@@ -133,7 +95,7 @@ def remove_points_stereo(file):
     return pcd_new
 
 
-def compute_distance(data, data_object, threshold, name):
+def compute_distance(data, data_object, threshold):
     # threshold = ([0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
     # i = threshold
     # for i in threshold:
@@ -141,11 +103,8 @@ def compute_distance(data, data_object, threshold, name):
     dists = np.asarray(dists)
     ind = np.where(dists > threshold)[0]
     object = data_object.select_by_index(ind)
-    if name == "Stereo":
-        inlier_cloud = statistical_outlier(object)
-        return inlier_cloud
-    else:
-        return object
+    inlier_cloud = statistical_outlier(object)
+    return inlier_cloud
 
 
 def radius_outlier(cloud):
@@ -157,9 +116,9 @@ def radius_outlier(cloud):
 
 
 def statistical_outlier(cloud):
-    cl, ind = cloud.remove_statistical_outlier(nb_neighbors=3000, std_ratio=0.1)
+    cl, ind = cloud.remove_statistical_outlier(nb_neighbors=100, std_ratio=0.1)
     inlier_cloud = cloud.select_by_index(ind)
-    display_inlier_outlier(cloud, ind, "statistical")
+    # display_inlier_outlier(cloud, ind, "statistical")
     # bounding_box(inlier_cloud, "statistical")
     return inlier_cloud
 
@@ -191,15 +150,15 @@ def kmeans(pc):
 
     y_kmeans = kmeans.fit_predict(normals)
     # visualising the clusters
-    centroids = getTrace(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], kmeans.cluster_centers_[:, 2],
-                         s=8, c='yellow', label='Centroids')
+    # centroids = getTrace(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], kmeans.cluster_centers_[:, 2],
+    #                      s=8, c='yellow', label='Centroids')
 
-    t1 = getTrace(points[y_kmeans == 0, 0], points[y_kmeans == 0, 1], points[y_kmeans == 0, 2], s=4, c='red',
-                  label='Top')  # match with red=1 initial class
-    t2 = getTrace(points[y_kmeans == 1, 0], points[y_kmeans == 1, 1], points[y_kmeans == 1, 2], s=4, c='green',
-                  label='Left')  # match with green=3 initial class
-    t3 = getTrace(points[y_kmeans == 2, 0], points[y_kmeans == 2, 1], points[y_kmeans == 2, 2], s=4, c='blue',
-                  label='Right')  # match with blue=2 initial class
+    # t1 = getTrace(points[y_kmeans == 0, 0], points[y_kmeans == 0, 1], points[y_kmeans == 0, 2], s=4, c='red',
+    #               label='Top')  # match with red=1 initial class
+    # t2 = getTrace(points[y_kmeans == 1, 0], points[y_kmeans == 1, 1], points[y_kmeans == 1, 2], s=4, c='green',
+    #               label='Left')  # match with green=3 initial class
+    # t3 = getTrace(points[y_kmeans == 2, 0], points[y_kmeans == 2, 1], points[y_kmeans == 2, 2], s=4, c='blue',
+    #               label='Right')  # match with blue=2 initial class
     # t4 = getTrace(points[y_kmeans == 3, 0], points[y_kmeans == 3, 1], points[y_kmeans == 3, 2], s=4, c='magenta',
     #               label='1')  # match with blue=2 initial class
 
@@ -224,7 +183,7 @@ def ransac(plane, threshold, n, i):
                                                num_iterations=i)
     [a, b, c, d] = plane_model
     name = equation(a, b, c)
-    print(f"Plane equation {name}: {a:.2f}x + {b:.2f}y + {c:.2f}z + {d:.2f} = 0")
+    # print(f"Plane equation {name}: {a:.2f}x + {b:.2f}y + {c:.2f}z + {d:.2f} = 0")
     inlier_cloud = plane.select_by_index(inliers)
     outlier_cloud = plane.select_by_index(inliers, invert=True)
     # showPointCloud(inlier_cloud, "inlier", False)
@@ -233,26 +192,6 @@ def ransac(plane, threshold, n, i):
     # f = open("test_data/tmp.txt", "a+")
     # f.write(f"Plane equation {name}: {a}x + {b}y + {c}z + {d} = 0\n")
     return inlier_cloud, outlier_cloud, [a, b, c, d], name
-
-
-def getTrace(x, y, z, c, label, s=2):
-    trace_points = go.Scatter3d(
-        x=x, y=y, z=z,
-        mode='markers',
-        marker=dict(size=s, line=dict(color='rgb(0, 0, 0)', width=0.5), color=c, opacity=1),
-        name=label
-    )
-    return trace_points
-
-
-def getMesh(x, y, z, c, label, s=4):
-    surface_points = go.Scatter3d(
-        x=x, y=y, z=z,
-        mode='lines',
-        marker=dict(size=s, line=dict(color='rgb(0, 0, 0)', width=0.5), color=c, opacity=1),
-        name=label
-    )
-    return surface_points
 
 
 def equation(plane_x, plane_y, plane_z):
@@ -266,22 +205,11 @@ def equation(plane_x, plane_y, plane_z):
     return plane_name
 
 
-# def find_equation(plane_model):
-#     test = plane_model.points[plane_model.points.is_plane == 1]
-#     test = test[['x', 'y', 'z']]
-#     plane_top = Plane()
-#     plane_top.from_point_cloud(test)
-#     equation1 = plane_top.get_equation()
-#     [a, b, c, d] = equation1
-#     print(f"Plane equation: {a:.2f}x + {b:.2f}y + {c:.2f}z + {d:.2f} = 0")
-#     return equation1
-
-
 def finde_intersection(plane1, plane2, plane3, name):
     left_side = [plane1[:3]] + [plane2[:3]] + [plane3[:3]]
     right_side = [[-plane1[3]]] + [[-plane2[3]]] + [[-plane3[3]]]
     i_p = np.linalg.solve(left_side, right_side)
-    test_function(i_p, plane1, plane2, plane3, name)
+    # test_function(i_p, plane1, plane2, plane3, name)
     ip = np.array(i_p.reshape(-1, 3))
     return ip
 
@@ -315,31 +243,36 @@ def showPointCloud(object, name, show_normal):
                                       point_show_normal=show_normal)
 
 
-# def graph(p_all, name):
-#     schnittpunkt = []
-#     for r, val in enumerate(p_all):
-#         schnittpunkt = getTrace(p_all[r, 0], p_all[r, 1], p_all[r, 2], s=6, c='blue',
-#                                 label=f'S: {name}')
-#     return schnittpunkt
+def getTrace(x, y, c, label, s=2):
+    trace_points = go.Scatter(
+        x=x, y=y,
+        mode='lines+markers',
+        marker=dict(size=s, line=dict(color='rgb(0, 0, 0)', width=0.5), color=c, opacity=1),
+        name=label
+    )
+    return trace_points
 
 
-def showGraph(title, x_colname, y_colname, z_colname, traces):
+def getBar(x, y, label, c):
+    bar = go.Bar(
+        x=x,
+        y=y,
+        name=label,
+        marker_color=c
+    )
+    return bar
+
+
+def showGraph(title, x_colname, y_colname, traces):
     layout = go.Layout(
         scene=dict(
             xaxis=dict(title=x_colname, autorange=True),
-            yaxis=dict(title=y_colname, autorange=True),
-            zaxis=dict(title=z_colname, autorange=True)
+            yaxis=dict(title=y_colname, autorange=True)
         )
     )
 
-    camera = dict(
-        up=dict(x=0, y=0, z=1),
-        center=dict(x=0, y=0, z=0),
-        eye=dict(x=-2, y=0, z=0.5)
-    )
-
     fig = go.Figure(data=traces, layout=layout)
-    fig.update_layout(scene_camera=camera, title=title)
+    fig.update_layout(title=title, barmode='group')
     # plotly.offline.plot(fig, filename='packet_data/test_data/' + title + '.html')
     fig.show()
 
@@ -375,9 +308,9 @@ def find_winkel(plane1, plane2, name):
     cos_angle = nenner / x_modulus / y_modulus
     angle = np.arccos(cos_angle)
     angle2 = angle * 360 / 2 / np.pi
-    print(f"Winkel {name}:", angle2)
-    angle2 = str(f": {angle2:.2f}")
-    return name + angle2
+    # print(f"Winkel {name}:", angle2)
+    # angle2 = str(f": {angle2:.2f}")
+    return angle2
 
 
 def transformate_stereo(ob):
@@ -414,20 +347,6 @@ def point_alignments(r, t, rs_in, ls_in, ts_in, s_p):
     return rs_in_t, ls_in_t, ts_in_t, s_p_t
 
 
-def inlier_trace(r_in, l_in, t_in, name):
-    inlier_1 = getTrace(t_in[:, 0], t_in[:, 1], t_in[:, 2],
-                        s=4, c='green', label=f'Top inliers {name}')
-    # outlier_1 = getTrace(t_out[:, 0], t_out[:, 1], t_out[:, 2],
-    #                     s=4, c='red', label='Top outliers')
-    inlier_2 = getTrace(l_in[:, 0], l_in[:, 1], l_in[:, 2],
-                        s=4, c='green', label=f'Left inliers {name}')
-    # outlier_2 = getTrace(l_out[:, 0], l_out[:, 1], l_out[:, 2],
-    #                     s=4, c='red', label='Left outliers')
-    inlier_3 = getTrace(r_in[:, 0], r_in[:, 1], r_in[:, 2],
-                        s=4, c='green', label=f'Right inliers {name}')
-    return inlier_1, inlier_2, inlier_3
-
-
 if __name__ == "__main__":
     """
     Lidar Daten
@@ -457,32 +376,58 @@ if __name__ == "__main__":
 
     # file_stereo = remove_points_lidar(file_stereo_t, crop_stereo)
     # file_object_stereo = remove_points_lidar(file_object_stereo_2, crop_stereo)
+    wl = ws = np.empty((0, 3))
+    x = []
+    norm_rll = norm_tll = norm_rtl = norm_rls = norm_tls = norm_rts = []
+    for i in progressbar(range(100)):
+        w_l = main(file_lidar, file_object_lidar, 0.1,
+                   "Lidar", 0.005)
+        w_s = main(file_stereo, file_object_stereo_2, 0.05,
+                   "Stereo", 0.005)
+        wl = np.append(wl, w_l, axis=0)
+        ws = np.append(ws, w_l, axis=0)
+        x.append(i)
+        norm_rll.append(np.divide(np.sum(wl[:, 0]), len(x)))
+        norm_tll.append(np.divide(np.sum(wl[:, 1]), len(x)))
+        norm_rtl.append(np.divide(np.sum(wl[:, 2]), len(x)))
+        norm_rls.append(np.divide(np.sum(ws[:, 0]), len(x)))
+        norm_tls.append(np.divide(np.sum(ws[:, 1]), len(x)))
+        norm_rts.append(np.divide(np.sum(ws[:, 2]), len(x)))
 
-    s_all_l, m1l, m2l, m3l, i1l, i2l, i3l = main(file_lidar, file_object_lidar, 0.1, "Lidar",
-                                                 0.005)
-    s_all_s, m1s, m2s, m3s, i1s, i2s, i3s = main(file_stereo, file_object_stereo_2, 0.05,
-                                                 "Stereo", 0.005)
-    rotation, translation = center_of_mass(s_all_l, s_all_s)
-    i1s, i2s, i3s, s_all_s = point_alignments(rotation, translation, i1s, i2s, i3s, s_all_s)
-    i1l, i2l, i3l = inlier_trace(i1l, i2l, i3l, "Lidar")
-    i1s = getTrace(i1s[0, :], i1s[1, :], i1s[2, :],
-                        s=4, c='orange', label=f'Right inliers Stereo')
-    i2s = getTrace(i2s[0, :], i2s[1, :], i2s[2, :],
-                        s=4, c='orange', label=f'Left inliers Stereo')
-    i3s = getTrace(i3s[0, :], i3s[1, :], i3s[2, :],
-                        s=4, c='orange', label=f'Top inliers Stereo')
-    schnittpunkt1l = getTrace(s_all_l[:, 0], s_all_l[:, 1], s_all_l[:, 2], s=6, c='blue',
-                                             label=f'S: Lidar')  # , schnittpunkt2l, schnittpunkt3l, schnittpunkt4l, schnittpunkt5l, schnittpunkt6l, schnittpunkt7l \
+    fig = make_subplots(rows=3, cols=1,
+                        subplot_titles=("Winkel R + L", "Winkel T + L", "Winkel R + T"))
 
-    schnittpunkt1s = getTrace(s_all_s[0, :], s_all_s[1, :], s_all_s[2, :], s=6, c='blue',
-                              label=f'S: Stereo')  # , schnittpunkt2s, schnittpunkt3s, schnittpunkt4s, schnittpunkt5s, schnittpunkt6s, schnittpunkt7s \
+    rll = getBar(x, wl[:, 0], c='indianred', label='Winkel R + L, Lidar')
+    tll = getBar(x, wl[:, 1], c='indianred', label='Winkel T + L, Lidar')
+    rtl = getBar(x, wl[:, 2], c='indianred', label='Winkel R + T, Lidar')
 
-    showGraph(
-        "Oberflächen_ransac open3d",
-        "Z", "X", "Y",
-        [schnittpunkt1l,
-         # schnittpunkt2l, schnittpunkt3l, schnittpunkt4l, schnittpunkt5l, schnittpunkt6l, schnittpunkt7l,
-         m1l, m2l, m3l, i1l, i2l, i3l,
-         schnittpunkt1s,
-         # schnittpunkt2s, schnittpunkt3s, schnittpunkt4s, schnittpunkt5s, schnittpunkt6s, schnittpunkt7s,
-         m1s, m2s, m3s, i1s, i2s, i3s])
+    rls = getBar(x, ws[:, 0], c='lightsalmon', label='Winkel R + L, Stereo')
+    tls = getBar(x, ws[:, 1], c='lightsalmon', label='Winkel T + L, Stereo')
+    rts = getBar(x, ws[:, 2], c='lightsalmon', label='Winkel R + T, Stereo')
+
+    norm_rll = getTrace(x, norm_rll, s=4, c='blue', label='Normalverteilung R+L, Lidar')
+    norm_tll = getTrace(x, norm_tll, s=4, c='blue', label='Normalverteilung T+L, Lidar')
+    norm_rtl = getTrace(x, norm_rtl, s=4, c='blue', label='Normalverteilung R+T, Lidar')
+    norm_rls = getTrace(x, norm_rls, s=4, c='lightgreen', label='Normalverteilung R+L, Stereo')
+    norm_tls = getTrace(x, norm_tls, s=4, c='lightgreen', label='Normalverteilung T+L, Stereo')
+    norm_rts = getTrace(x, norm_rts, s=4, c='lightgreen', label='Normalverteilung R+T, Stereo')
+
+    fig.add_trace(rll, row=1, col=1)
+    fig.add_trace(tll, row=2, col=1)
+    fig.add_trace(rtl, row=3, col=1)
+    fig.add_trace(rls, row=1, col=1)
+    fig.add_trace(tls, row=2, col=1)
+    fig.add_trace(rts, row=3, col=1)
+    fig.add_trace(norm_rll, row=1, col=1)
+    fig.add_trace(norm_tll, row=2, col=1)
+    fig.add_trace(norm_rtl, row=3, col=1)
+    fig.add_trace(norm_rls, row=1, col=1)
+    fig.add_trace(norm_tls, row=2, col=1)
+    fig.add_trace(norm_rts, row=3, col=1)
+
+    fig.show()
+
+    # showGraph(
+    #     "Verteilung Winkel",
+    #     "X", "Y",
+    #     [rll, tll, rtl, rls, tls, rts, norm_rll, norm_tll, norm_rtl, norm_rls, norm_tls, norm_rts])
