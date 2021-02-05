@@ -1,3 +1,5 @@
+import csv
+
 from sklearn.cluster import KMeans
 import numpy as np
 from scipy.stats import norm
@@ -5,26 +7,25 @@ import open3d as o3d
 from plotly.subplots import make_subplots
 import plotly.graph_objs as go
 from progressbar import progressbar
+from matplotlib import pyplot as plt
+import pandas as pd
 
 
 def main(pcd, pcd_object, threshold, name, threshold_ransac):
     object_isolated = compute_distance(pcd, pcd_object, threshold, name)
     normals_estimated = normal_estimation(object_isolated)
     right, left, top = kmeans(normals_estimated)
-    # plane_model_a = plane_model_b = plane_model_c = np.empty((0, 4))
-    # vektor_rtc = vektor_ltc = vektor_rlc = np.empty((0, 3))
-    # a_in = b_in = c_in = a_out = b_out = c_out = np.empty((0, 4))
-    # for i in progressbar(range(100)):
-    a_in, a_out, plane_model_a, plane_name_a = ransac(right, threshold_ransac, 3, 500)  # ransac on plane,
-    b_in, b_out, plane_model_b, plane_name_b = ransac(left, threshold_ransac, 3,
-                                                      500)  # 3 randomly choosen startpoints
-    c_in, c_out, plane_model_c, plane_name_c = ransac(top, threshold_ransac, 3, 500)  # 500 iterations
-    # print("A", plane_model_a_x)
-    # print("B", plane_model_b_x)
-    # print("C", plane_model_c_x)
-    # plane_model_a = np.append(plane_model_a, plane_model_a_x, axis=0)
-    # plane_model_b = np.append(plane_model_b, plane_model_b_x, axis=0)
-    # plane_model_c = np.append(plane_model_c, plane_model_c_x, axis=0)
+    plane_model_a = plane_model_b = plane_model_c = np.empty((0, 4))
+    vektor_rtc = vektor_ltc = vektor_rlc = np.empty((0, 3))
+    a_in = b_in = c_in = a_out = b_out = c_out = np.empty((0, 4))
+    for i in progressbar(range(100)):
+        a_in, a_out, plane_model_a_x, plane_name_a = ransac(right, threshold_ransac, 3, 500)  # ransac on plane,
+        b_in, b_out, plane_model_b_x, plane_name_b = ransac(left, threshold_ransac, 3,
+                                                            500)  # 3 randomly choosen startpoints
+        c_in, c_out, plane_model_c_x, plane_name_c = ransac(top, threshold_ransac, 3, 500)  # 500 iterations
+        plane_model_a = np.append(plane_model_a, plane_model_a_x, axis=0)
+        plane_model_b = np.append(plane_model_b, plane_model_b_x, axis=0)
+        plane_model_c = np.append(plane_model_c, plane_model_c_x, axis=0)
 
     # np.savetxt(plane_name_a+name+".txt", plane_model_a)
     # np.savetxt(plane_name_b+name+".txt", plane_model_b)
@@ -181,7 +182,7 @@ def getTrace(x, y, c, label, s=2):
 def getTrace2(x, y, z, c, label, s=2):
     trace_points = go.Scatter3d(
         x=x, y=y, z=z,
-        mode='markers',
+        mode='lines+markers',
         marker=dict(size=s, line=dict(color='rgb(0, 0, 0)', width=0.5), color=c, opacity=1),
         name=label
     )
@@ -240,7 +241,7 @@ def normal_distribution(winkel, name):
     # winkel_z = np.sort(winkel[:, 2], axis=0)
     # # mean_x = np.mean(winkel_x)
     # # sta_x = np.std(winkel_x)
-    print(f"Mittelwert ist {mean}, Standardabweichung ist {std}")
+    # print(f"Mittelwert ist {mean}, Standardabweichung ist {std}")
     # fig, axs = plt.subplots(figsize=(10, 5))
     # for i in range(winkel.shape[1]):
     #     plt.hist(winkel[:, i])
@@ -311,17 +312,17 @@ if __name__ == "__main__":
 
     # norm_vrtl, norm_vtll, norm_vrll, v_rtl, v_tll, v_rll, bar_rl, bar_tl, bar_ll
     # norm_vrls, norm_vtls, norm_vrts, v_rts, v_tls, v_rls, bar_rs, bar_ts, bar_ls
-    plane_rl = plane_ll = plane_tl = plane_ls = plane_ts = plane_rs = np.empty((0, 3))
-    for i in progressbar(range(100)):
-        plane_rl_t, plane_ll_t, plane_tl_t = main(file_lidar, file_object_lidar, 0.1, "Lidar", 0.03)
-        # for i in progressbar(range(100)):
-        plane_rs_t, plane_ls_t, plane_ts_t = main(file_stereo, file_object_stereo_2, 0.05, "Stereo", 0.003)
-        plane_rl = np.append(plane_rl, plane_rl_t, axis=0)
-        plane_ll = np.append(plane_ll, plane_ll_t, axis=0)
-        plane_tl = np.append(plane_tl, plane_tl_t, axis=0)
-        plane_rs = np.append(plane_rs, plane_rs_t, axis=0)
-        plane_ls = np.append(plane_ls, plane_ls_t, axis=0)
-        plane_ts = np.append(plane_ts, plane_ts_t, axis=0)
+    # plane_rl = plane_ll = plane_tl = plane_ls = plane_ts = plane_rs = np.empty((0, 3))
+    # for i in progressbar(range(100)):
+    plane_rl, plane_ll, plane_tl = main(file_lidar, file_object_lidar, 0.1, "Lidar", 0.03)
+    # for i in progressbar(range(100)):
+    plane_rs, plane_ls, plane_ts = main(file_stereo, file_object_stereo_2, 0.05, "Stereo", 0.003)
+    # plane_rl = np.append(plane_rl, plane_rl_t, axis=0)
+    # plane_ll = np.append(plane_ll, plane_ll_t, axis=0)
+    # plane_tl = np.append(plane_tl, plane_tl_t, axis=0)
+    # plane_rs = np.append(plane_rs, plane_rs_t, axis=0)
+    # plane_ls = np.append(plane_ls, plane_ls_t, axis=0)
+    # plane_ts = np.append(plane_ts, plane_ts_t, axis=0)
 
     mean_rl, std_rl = normal_distribution(plane_rl, "R")
     mean_ll, std_ll = normal_distribution(plane_ll, "L")
@@ -331,9 +332,8 @@ if __name__ == "__main__":
     mean_ts, std_ts = normal_distribution(plane_ts, "T")
 
     fig = make_subplots(rows=6, cols=3,
-                        subplot_titles=("Flächenvektor a, X", "Lidar, Y", "Z", "Flächenvektor b", "", "",
-                                        "Flächenvektor c", "", "",
-                                        "Flächenvektor a, X", "Stereo, Y", "Z", "Flächenvektor b", "", "", "Flächenvektor c"))
+                        subplot_titles=("Winkel R + L", "Lidar", "", "Winkel T + L", "", "", "Winkel R + T", "", "",
+                                        "Winkel R + L", "Stereo", "", "Winkel T + L", "", "", "Winkel R + T"))
     plane_rl_x = getBar(plane_rl[:, 0],
                         'blue')  # , norm.pdf(plane_rl[:, 0], mean_rl[0], std_rl[0]), c='blue', label='RxL')
     plane_rl_y = getBar(plane_rl[:, 1],
@@ -400,7 +400,25 @@ if __name__ == "__main__":
     fig.add_trace(plane_ts_y, row=6, col=2)
     fig.add_trace(plane_ts_z, row=6, col=3)
 
-    norm_rl_x = getTrace(plane_rl[:, 0], norm.pdf(plane_rl[:, 0], mean_rl[0], std_rl[0]), s=4,
+    # norm_v_rll = normal_distribution(v_rll)
+    # norm_v_tll = normal_distribution(v_tll)
+    # norm_v_rtl = normal_distribution(v_rtl)
+    # # norm_v_rls = normal_distribution(v_rls)
+    # # norm_v_tls = normal_distribution(v_tls)
+    # # norm_v_rts = normal_distribution(v_rts)
+    #
+    # # print("Verteilungen RLL", norm_v_rll)
+    # # print("Verteilungen TLL", norm_v_tll)
+    # # print("Verteilungen RTL", norm_v_rtl)
+    # # print("Verteilungen RLS", norm_v_rls)
+    # # print("Verteilungen TLS", norm_v_tls)
+    # # print("Verteilungen RTS", norm_v_rts)
+    #
+    # fig = make_subplots(rows=6, cols=3,
+    #                     subplot_titles=("Winkel R + L", "Lidar", "", "Winkel T + L", "", "", "Winkel R + T", "", "",
+    #                                     "Winkel R + L", "Stereo", "", "Winkel T + L", "", "", "Winkel R + T"))
+    #
+    norm_rl_x = getTrace(plane_rl[:, 0], (norm.pdf(plane_rl[:, 0], mean_rl[0], std_rl[0]) * std_rl[0]), s=4,
                          c='lightcoral', label='RxL')
     norm_rl_y = getTrace(plane_rl[:, 1], norm.pdf(plane_rl[:, 1], mean_rl[1], std_rl[1]), s=4, c='lightcoral',
                          label='RyL')
@@ -465,71 +483,5 @@ if __name__ == "__main__":
     fig.add_trace(norm_ts_x, row=6, col=1)
     fig.add_trace(norm_ts_y, row=6, col=2)
     fig.add_trace(norm_ts_z, row=6, col=3)
-
-    # norm_v_rll = normal_distribution(v_rll)
-    # norm_v_tll = normal_distribution(v_tll)
-    # norm_v_rtl = normal_distribution(v_rtl)
-    # # norm_v_rls = normal_distribution(v_rls)
-    # # norm_v_tls = normal_distribution(v_tls)
-    # # norm_v_rts = normal_distribution(v_rts)
-    #
-    # # print("Verteilungen RLL", norm_v_rll)
-    # # print("Verteilungen TLL", norm_v_tll)
-    # # print("Verteilungen RTL", norm_v_rtl)
-    # # print("Verteilungen RLS", norm_v_rls)
-    # # print("Verteilungen TLS", norm_v_tls)
-    # # print("Verteilungen RTS", norm_v_rts)
-    #
-    # fig = make_subplots(rows=6, cols=3,
-    #                     subplot_titles=("Winkel R + L", "Lidar", "", "Winkel T + L", "", "", "Winkel R + T", "", "",
-    #                                     "Winkel R + L", "Stereo", "", "Winkel T + L", "", "", "Winkel R + T"))
-    #
-    # norm_rtl_x = getTrace(v_rtl[:, 0], norm_vrtl[:, 0], s=4, c='lightcoral', label='Normalverteilung R+T, Lidar')
-    # norm_rtl_y = getTrace(v_rtl[:, 1], norm_vrtl[:, 1], s=4, c='lightcoral', label='Normalverteilung R+T, Lidar')
-    # norm_rtl_z = getTrace(v_rtl[:, 2], norm_vrtl[:, 2], s=4, c='lightcoral', label='Normalverteilung R+T, Lidar')
-    #
-    # norm_tll_x = getTrace(v_tll[:, 0], norm_vtll[:, 0], s=4, c='lightcoral', label='Normalverteilung T+L, Lidar')
-    # norm_tll_y = getTrace(v_tll[:, 1], norm_vtll[:, 1], s=4, c='lightcoral', label='Normalverteilung T+L, Lidar')
-    # norm_tll_z = getTrace(v_tll[:, 2], norm_vtll[:, 2], s=4, c='lightcoral', label='Normalverteilung T+L, Lidar')
-    #
-    # norm_rll_x = getTrace(v_rll[:, 0], norm_vrll[:, 0], s=4, c='lightcoral', label='Normalverteilung R+L, Lidar')
-    # norm_rll_y = getTrace(v_rll[:, 1], norm_vrll[:, 1], s=4, c='lightcoral', label='Normalverteilung R+L, Lidar')
-    # norm_rll_z = getTrace(v_rll[:, 2], norm_vrll[:, 2], s=4, c='lightcoral', label='Normalverteilung R+L, Lidar')
-    #
-    # norm_rts_x = getTrace(v_rts[:, 0], norm_vrts[:, 0], s=4, c='lightcoral', label='Normalverteilung R+T, Stereo')
-    # norm_rts_y = getTrace(v_rts[:, 1], norm_vrts[:, 1], s=4, c='lightcoral', label='Normalverteilung R+T, Stereo')
-    # norm_rts_z = getTrace(v_rts[:, 2], norm_vrts[:, 2], s=4, c='lightcoral', label='Normalverteilung R+T, Stereo')
-    #
-    # norm_tls_x = getTrace(v_tls[:, 0], norm_vtls[:, 0], s=4, c='lightcoral', label='Normalverteilung T+L, Stereo')
-    # norm_tls_y = getTrace(v_tls[:, 1], norm_vtls[:, 1], s=4, c='lightcoral', label='Normalverteilung T+L, Stereo')
-    # norm_tls_z = getTrace(v_tls[:, 2], norm_vtls[:, 2], s=4, c='lightcoral', label='Normalverteilung T+L, Stereo')
-    #
-    # norm_rls_x = getTrace(v_rls[:, 0], norm_vrls[:, 0], s=4, c='lightcoral', label='Normalverteilung R+L, Stereo')
-    # norm_rls_y = getTrace(v_rls[:, 1], norm_vrls[:, 1], s=4, c='lightcoral', label='Normalverteilung R+L, Stereo')
-    # norm_rls_z = getTrace(v_rls[:, 2], norm_vrls[:, 2], s=4, c='lightcoral', label='Normalverteilung R+L, Stereo')
-    #
-    # fig.add_trace(norm_rll_x, row=3, col=1)
-    # fig.add_trace(norm_rll_y, row=3, col=2)
-    # fig.add_trace(norm_rll_z, row=3, col=3)
-    #
-    # fig.add_trace(norm_tll_x, row=2, col=1)
-    # fig.add_trace(norm_tll_y, row=2, col=2)
-    # fig.add_trace(norm_tll_z, row=2, col=3)
-    #
-    # fig.add_trace(norm_rtl_x, row=1, col=1)
-    # fig.add_trace(norm_rtl_y, row=1, col=2)
-    # fig.add_trace(norm_rtl_z, row=1, col=3)
-    #
-    # fig.add_trace(norm_rls_x, row=6, col=1)
-    # fig.add_trace(norm_rls_y, row=6, col=2)
-    # fig.add_trace(norm_rls_z, row=6, col=3)
-    #
-    # fig.add_trace(norm_tls_x, row=5, col=1)
-    # fig.add_trace(norm_tls_y, row=5, col=2)
-    # fig.add_trace(norm_tls_z, row=5, col=3)
-    #
-    # fig.add_trace(norm_rts_x, row=4, col=1)
-    # fig.add_trace(norm_rts_y, row=4, col=2)
-    # fig.add_trace(norm_rts_z, row=4, col=3)
 
     fig.show()

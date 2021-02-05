@@ -1,4 +1,6 @@
 from tkinter import Tk
+
+from progressbar import progressbar
 from sklearn.cluster import KMeans
 import numpy as np
 import open3d as o3d
@@ -8,18 +10,30 @@ import plotly.graph_objs as go
 
 
 def main(pcd, pcd_object, threshold, name, threshold_ransac):
-    object_isolated = compute_distance(pcd, pcd_object, threshold, name)
+    object_isolated = compute_distance(pcd, pcd_object, threshold, name)    # remove points appearing in both data
     # showPointCloud(object_isolated, "lidar", False)
-    normals_estimated = normal_estimation(object_isolated)
-    right, left, top = kmeans(normals_estimated)
+    normals_estimated = normal_estimation(object_isolated)                  # estimate normals
+    right, left, top = kmeans(normals_estimated)                            # run kmean on object, returns planes detected
     # temp_r = normal_estimation(right)
     # temp_l = normal_estimation(left)
     # temp_t = normal_estimation(top)
     # top, left, right = equation(temp_r, temp_l, temp_t)
+    plane_model_a = plane_model_b = plane_model_c = np.empty((0, 4))
+    a_in = b_in = c_in = a_out = b_out = c_out = np.empty((0, 3))
+    x = []
+    for i in progressbar(range(100)):
+        a_in, a_out, plane_model_a_x, plane_name_a = ransac(right, threshold_ransac, 3, 500)    # ransac on plane,
+        b_in, b_out, plane_model_b_x, plane_name_b = ransac(left, threshold_ransac, 3, 500)     # 3 randomly choosen startpoints
+        c_in, c_out, plane_model_c_x, plane_name_c = ransac(top, threshold_ransac, 3, 500)      # 500 iterations
+        x.append(i)
+        plane_model_a = np.append(plane_model_a, plane_model_a_x, axis=0)
+        plane_model_b = np.append(plane_model_b, plane_model_b_x, axis=0)
+        plane_model_c = np.append(plane_model_c, plane_model_c_x, axis=0)
 
-    a_in, a_out, plane_model_a, plane_name_a = ransac(right, threshold_ransac, 3, 500)
-    b_in, b_out, plane_model_b, plane_name_b = ransac(left, threshold_ransac, 3, 500)
-    c_in, c_out, plane_model_c, plane_name_c = ransac(top, threshold_ransac, 3, 500)
+    plane_model_a = np.divide(np.sum(plane_model_a, axis=0), len(x))
+    plane_model_b = np.divide(np.sum(plane_model_b, axis=0), len(x))
+    plane_model_c = np.divide(np.sum(plane_model_c, axis=0), len(x))
+    # print(plane_model_a)
 
     if plane_name_a == "Top":
         t_in, t_out, plane_model_t = a_in, a_out, plane_model_a
@@ -157,7 +171,7 @@ def radius_outlier(cloud):
 
 
 def statistical_outlier(cloud):
-    cl, ind = cloud.remove_statistical_outlier(nb_neighbors=3000, std_ratio=0.1)
+    cl, ind = cloud.remove_statistical_outlier(nb_neighbors=3000, std_ratio=0.01)
     inlier_cloud = cloud.select_by_index(ind)
     display_inlier_outlier(cloud, ind, "statistical")
     # bounding_box(inlier_cloud, "statistical")
@@ -224,7 +238,7 @@ def ransac(plane, threshold, n, i):
                                                num_iterations=i)
     [a, b, c, d] = plane_model
     name = equation(a, b, c)
-    print(f"Plane equation {name}: {a:.2f}x + {b:.2f}y + {c:.2f}z + {d:.2f} = 0")
+    # print(f"Plane equation {name}: {a:.2f}x + {b:.2f}y + {c:.2f}z + {d:.2f} = 0")
     inlier_cloud = plane.select_by_index(inliers)
     outlier_cloud = plane.select_by_index(inliers, invert=True)
     # showPointCloud(inlier_cloud, "inlier", False)
@@ -232,7 +246,7 @@ def ransac(plane, threshold, n, i):
     outlier_cloud = np.asarray(outlier_cloud.points)
     # f = open("test_data/tmp.txt", "a+")
     # f.write(f"Plane equation {name}: {a}x + {b}y + {c}z + {d} = 0\n")
-    return inlier_cloud, outlier_cloud, [a, b, c, d], name
+    return inlier_cloud, outlier_cloud, np.array([[a, b, c, d]]), name
 
 
 def getTrace(x, y, z, c, label, s=2):
@@ -261,7 +275,7 @@ def equation(plane_x, plane_y, plane_z):
         plane_name = "Right"
     elif plane_x < 0 and plane_z > 0:
         plane_name = "Top"
-    elif plane_x < 0 and plane_y > 0 and plane_z < 0:
+    elif plane_x < 0 and plane_z < 0:
         plane_name = "Left"
     return plane_name
 
@@ -315,12 +329,9 @@ def showPointCloud(object, name, show_normal):
                                       point_show_normal=show_normal)
 
 
-# def graph(p_all, name):
-#     schnittpunkt = []
-#     for r, val in enumerate(p_all):
-#         schnittpunkt = getTrace(p_all[r, 0], p_all[r, 1], p_all[r, 2], s=6, c='blue',
-#                                 label=f'S: {name}')
-#     return schnittpunkt
+def normal_distribution(plane_model):
+    mean = np.average(plane_model, axis=0)
+    print("Mittelwert", mean)
 
 
 def showGraph(title, x_colname, y_colname, z_colname, traces):
@@ -353,7 +364,6 @@ def plane_intersect(a, b):
     output: 2 points on line of intersection, np.arrays, shape (3,)
     """
     a_vec, b_vec = np.array(a[:3]), np.array(b[:3])
-
     aXb_vec = np.cross(a_vec, b_vec)
 
     A = np.array([a_vec, b_vec, aXb_vec])
@@ -403,28 +413,33 @@ def center_of_mass(l_all, s_all):
     t = np.subtract(mass_center_l, np.dot(r, mass_center_s))
     print("r", r)
     print("t", t)
-    return r, t
+    return r, t, mass_center_l, mass_center_s
 
 
-def point_alignments(r, t, rs_in, ls_in, ts_in, s_p):
-    rs_in_t = np.dot(r, np.add(rs_in, t.T).T)
-    ls_in_t = np.dot(r, np.add(ls_in, t.T).T)
-    ts_in_t = np.dot(r, np.add(ts_in, t.T).T)
-    s_p_t = np.dot(r, np.add(s_p, t).T)
+def point_alignments(r, t, mq, mp, rs_in, ls_in, ts_in, s_p):
+    rs_in_t = np.add(np.dot(rs_in, r.T), t.T)
+    ls_in_t = np.add(np.dot(ls_in, r.T), t.T)
+    ts_in_t = np.add(np.dot(ts_in, r.T), t.T)
+    s_p_t = np.add(np.dot(s_p, r.T), t.T)
+    # rs_in_t = np.add(mq, np.dot(np.subtract(rs_in, mp), r.T))
+    # ls_in_t = np.add(mq, np.dot(np.subtract(ls_in, mp), r.T))
+    # ts_in_t = np.add(mq, np.dot(np.subtract(ts_in, mp), r.T))
+    # s_p_t = np.add(mq, np.dot(np.subtract(s_p, mp), r.T))
+
     return rs_in_t, ls_in_t, ts_in_t, s_p_t
 
 
-def inlier_trace(r_in, l_in, t_in, name):
+def inlier_trace(r_in, l_in, t_in, name, color):
     inlier_1 = getTrace(t_in[:, 0], t_in[:, 1], t_in[:, 2],
-                        s=4, c='green', label=f'Top inliers {name}')
+                        s=4, c=color, label=f'Top inliers {name}')
     # outlier_1 = getTrace(t_out[:, 0], t_out[:, 1], t_out[:, 2],
     #                     s=4, c='red', label='Top outliers')
     inlier_2 = getTrace(l_in[:, 0], l_in[:, 1], l_in[:, 2],
-                        s=4, c='green', label=f'Left inliers {name}')
+                        s=4, c=color, label=f'Left inliers {name}')
     # outlier_2 = getTrace(l_out[:, 0], l_out[:, 1], l_out[:, 2],
     #                     s=4, c='red', label='Left outliers')
     inlier_3 = getTrace(r_in[:, 0], r_in[:, 1], r_in[:, 2],
-                        s=4, c='green', label=f'Right inliers {name}')
+                        s=4, c=color, label=f'Right inliers {name}')
     return inlier_1, inlier_2, inlier_3
 
 
@@ -440,43 +455,56 @@ if __name__ == "__main__":
     file_stero = "test_data/seq_6.5m_styropor_pos1_0/stereo/merged.txt"
     file_object_stereo = "test_data/seq_6.5m_pos1_0/stereo/merged.txt"
 
-    crop_lidar = [5, 8, -1.5, 2, -0.5, 1]
-    crop_stereo = [6.5, 7.5, -0.5, -1.5, 0, -0.5]
-
+    """
+    Einlesen der Daten
+    """
     file_lidar = o3d.io.read_point_cloud(file_lidar, format='auto')
     file_object_lidar = o3d.io.read_point_cloud(file_object_lidar, format='auto')
 
     file_stero = o3d.io.read_point_cloud(file_stero, format='xyzrgb')
     file_object_stereo_1 = o3d.io.read_point_cloud(file_object_stereo, format='xyzrgb')
 
+    """ Cropping of data if necessary """
+    crop_lidar = [5, 8, -1.5, 2, -0.5, 1]
+    crop_stereo = [6.5, 7.5, -0.5, -1.5, 0, -0.5]
+
     file_lidar = remove_points_lidar(file_lidar, crop_lidar)
     file_object_lidar = remove_points_lidar(file_object_lidar, crop_lidar)
 
+    """
+    Stereodaten in Lidar Koordinatensystem überführen 
+    """
     file_stereo = transformate_stereo(file_stero)
     file_object_stereo_2 = transformate_stereo(file_object_stereo_1)
 
     # file_stereo = remove_points_lidar(file_stereo_t, crop_stereo)
     # file_object_stereo = remove_points_lidar(file_object_stereo_2, crop_stereo)
 
+    """ Run main on Lidar and Stereo """
     s_all_l, m1l, m2l, m3l, i1l, i2l, i3l = main(file_lidar, file_object_lidar, 0.1, "Lidar",
-                                                 0.005)
+                                                 0.03)
     s_all_s, m1s, m2s, m3s, i1s, i2s, i3s = main(file_stereo, file_object_stereo_2, 0.05,
-                                                 "Stereo", 0.005)
-    rotation, translation = center_of_mass(s_all_l, s_all_s)
-    i1s, i2s, i3s, s_all_s = point_alignments(rotation, translation, i1s, i2s, i3s, s_all_s)
-    i1l, i2l, i3l = inlier_trace(i1l, i2l, i3l, "Lidar")
-    i1s = getTrace(i1s[0, :], i1s[1, :], i1s[2, :],
-                        s=4, c='orange', label=f'Right inliers Stereo')
-    i2s = getTrace(i2s[0, :], i2s[1, :], i2s[2, :],
-                        s=4, c='orange', label=f'Left inliers Stereo')
-    i3s = getTrace(i3s[0, :], i3s[1, :], i3s[2, :],
-                        s=4, c='orange', label=f'Top inliers Stereo')
+                                                 "Stereo", 0.003)
+
+    """ Compute center of mass and singular value decomposition """
+    rotation, translation, mq, mp = center_of_mass(s_all_l, s_all_s)
+    """ Allign Stereo data to lidar data """
+    i1s, i2s, i3s, s_all_s = point_alignments(rotation, translation, mq, mp, i1s, i2s, i3s, s_all_s)
+
+    """ Build trace for plotly """
+    i1l, i2l, i3l = inlier_trace(i1l, i2l, i3l, "Lidar", "green")
+    i1s, i2s, i3s = inlier_trace(i1s, i2s, i3s, "Stereo", "orange")
+    # i1s = getTrace(i1s[0, :], i1s[1, :], i1s[2, :],
+    #                s=4, c='orange', label=f'Right inliers Stereo')
+    # i2s = getTrace(i2s[0, :], i2s[1, :], i2s[2, :],
+    #                s=4, c='orange', label=f'Left inliers Stereo')
+    # i3s = getTrace(i3s[0, :], i3s[1, :], i3s[2, :],
+    #                s=4, c='orange', label=f'Top inliers Stereo')
     schnittpunkt1l = getTrace(s_all_l[:, 0], s_all_l[:, 1], s_all_l[:, 2], s=6, c='blue',
-                                             label=f'S: Lidar')  # , schnittpunkt2l, schnittpunkt3l, schnittpunkt4l, schnittpunkt5l, schnittpunkt6l, schnittpunkt7l \
+                              label=f'S: Lidar')
 
-    schnittpunkt1s = getTrace(s_all_s[0, :], s_all_s[1, :], s_all_s[2, :], s=6, c='blue',
-                              label=f'S: Stereo')  # , schnittpunkt2s, schnittpunkt3s, schnittpunkt4s, schnittpunkt5s, schnittpunkt6s, schnittpunkt7s \
-
+    schnittpunkt1s = getTrace(s_all_s[:, 0], s_all_s[:, 1], s_all_s[:, 2], s=6, c='red',
+                              label=f'S: Stereo')
     showGraph(
         "Oberflächen_ransac open3d",
         "Z", "X", "Y",
