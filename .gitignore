@@ -3,4 +3,11 @@
 .idea
 *.pdf
 *_data
+data
 __pycache__
+Bachelorarbeit
+*.txt
+normalverteilung*
+*.html
+*.ply
+*.docx

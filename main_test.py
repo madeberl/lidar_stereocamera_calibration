@@ -59,7 +59,9 @@ def main(pcd, pcd_object, threshold, name, threshold_ransac):
     # norm_rt, domain_rtc = normal_distribution(plane_model_r, "R+T, " + name)
     # norm_lt, domain_ltc = normal_distribution(plane_model_l, "L+T, " + name)
     # norm_rl, domain_rlc = normal_distribution(plane_model_t, "R+L, " + name)
-
+    w1 = np.array(find_winkel(plane_model_l, plane_model_t, "Winkel L + T"))
+    w2 = np.array(find_winkel(plane_model_l, plane_model_r, "Winkel L + R"))
+    w3 = np.array(find_winkel(plane_model_r, plane_model_t, "Winkel R + T"))
     return plane_model_r[:, :3], plane_model_l[:, :3], plane_model_t[:, :3]
 
 
@@ -69,11 +71,18 @@ def toPointCloud(points):
     return pointcloud
 
 
-def remove_points(file, cut):
+def remove_points_lidar(file, cut):
     point = np.asarray(file.points)
     point_new = point[(point[:, 0] > cut[0]) & (point[:, 0] < cut[1])
                       & (point[:, 1] > cut[2]) & (point[:, 1] < cut[3])
                       & (point[:, 2] > cut[4]) & (point[:, 2] < cut[5])]
+    pcd_new = toPointCloud(point_new)
+    return pcd_new
+
+
+def remove_points(file):
+    point = np.asarray(file.points)
+    point_new = point[(point[:, 2] > 0)]
     pcd_new = toPointCloud(point_new)
     return pcd_new
 
@@ -191,8 +200,9 @@ def getTrace2(x, y, z, c, label, s=2):
 def getBar(x, c):  # , y, label, c):
     bar = go.Histogram(
         x=x,
-        histnorm='probability density',
-        marker=dict(color=c))
+        marker=dict(color=c),
+        xbins=dict(size=0.0005),
+        histnorm='probability density')
     #     name=label,
     #     marker_color=c
     # )
@@ -282,28 +292,40 @@ if __name__ == "__main__":
     """
     Lidar Daten
     """
-    file_lidar = "test_data/seq_6.5m_styropor_pos1_0/lidar/1611244442.622.pcd"
-    file_object_lidar = "test_data/seq_6.5m_pos1_0/lidar/1611244394.863.pcd"
+    file_lidar = "test_data/doppel_paket_10m/seq_10m_styropor_pos1_0/lidar/merged.pcd"
+    file_object_lidar = "test_data/doppel_paket_10m/seq_10m_pos1_0/lidar/merged.pcd"
     """
     Stereo Daten
     """
-    file_stero = "test_data/seq_6.5m_styropor_pos1_0/stereo/merged.txt"
-    file_object_stereo = "test_data/seq_6.5m_pos1_0/stereo/merged.txt"
+    file_stereo = "test_data/doppel_paket_10m/seq_10m_styropor_pos1_0/stereo/merged.txt"
+    file_object_stereo = "test_data/doppel_paket_10m/seq_10m_pos1_0/stereo/merged.txt"
 
-    crop_lidar = [5, 8, -1.5, 2, -0.5, 1]
-    crop_stereo = [6.5, 7.5, -0.5, -1.5, 0, -0.5]
-
+    """
+    Einlesen der Daten
+    """
     file_lidar = o3d.io.read_point_cloud(file_lidar, format='auto')
     file_object_lidar = o3d.io.read_point_cloud(file_object_lidar, format='auto')
 
-    file_stero = o3d.io.read_point_cloud(file_stero, format='xyzrgb')
-    file_object_stereo_1 = o3d.io.read_point_cloud(file_object_stereo, format='xyzrgb')
+    file_stereo = o3d.io.read_point_cloud(file_stereo, format='xyzrgb')
+    file_object_stereo = o3d.io.read_point_cloud(file_object_stereo, format='xyzrgb')
 
-    file_lidar = remove_points(file_lidar, crop_lidar)
-    file_object_lidar = remove_points(file_object_lidar, crop_lidar)
+    """ Cropping of data if necessary """
+    crop_lidar = [5, 8, -1.5, 2, -0.5, 1]
+    crop_lidar_10m = [10, 11.5, 0, 1, 0, 1]
 
-    file_stereo = transformate_stereo(file_stero)
-    file_object_stereo_2 = transformate_stereo(file_object_stereo_1)
+    # file_lidar = remove_points_lidar(file_lidar, crop_lidar_10m)
+    # file_object_lidar = remove_points_lidar(file_object_lidar, crop_lidar_10m)
+    file_lidar = remove_points(file_lidar)
+    file_object_lidar = remove_points(file_object_lidar)
+
+    """
+    Stereodaten in Lidar Koordinatensystem überführen 
+    """
+    file_stereo = transformate_stereo(file_stereo)
+    file_object_stereo = transformate_stereo(file_object_stereo)
+
+    file_stereo = remove_points(file_stereo)
+    file_object_stereo = remove_points(file_object_stereo)
 
     # file_stereo = remove_points_lidar(file_stereo_t, crop_stereo)
     # file_object_stereo = remove_points_lidar(file_object_stereo_2, crop_stereo)
@@ -313,12 +335,12 @@ if __name__ == "__main__":
     # norm_vrls, norm_vtls, norm_vrts, v_rts, v_tls, v_rls, bar_rs, bar_ts, bar_ls
     plane_rl = plane_ll = plane_tl = plane_ls = plane_ts = plane_rs = np.empty((0, 3))
     for i in progressbar(range(100)):
-        plane_rl_t, plane_ll_t, plane_tl_t = main(file_lidar, file_object_lidar, 0.1, "Lidar", 0.03)
-        # for i in progressbar(range(100)):
-        plane_rs_t, plane_ls_t, plane_ts_t = main(file_stereo, file_object_stereo_2, 0.05, "Stereo", 0.003)
+        plane_rl_t, plane_ll_t, plane_tl_t = main(file_lidar, file_object_lidar, 0.05, "Lidar", 0.01)
         plane_rl = np.append(plane_rl, plane_rl_t, axis=0)
         plane_ll = np.append(plane_ll, plane_ll_t, axis=0)
         plane_tl = np.append(plane_tl, plane_tl_t, axis=0)
+    for i in progressbar(range(100)):
+        plane_rs_t, plane_ls_t, plane_ts_t = main(file_stereo, file_object_stereo, 0.05, "Stereo", 0.004)
         plane_rs = np.append(plane_rs, plane_rs_t, axis=0)
         plane_ls = np.append(plane_ls, plane_ls_t, axis=0)
         plane_ts = np.append(plane_ts, plane_ts_t, axis=0)
@@ -332,8 +354,8 @@ if __name__ == "__main__":
 
     fig = make_subplots(rows=6, cols=3,
                         subplot_titles=("Flächenvektor a, X", "Lidar, Y", "Z", "Flächenvektor b", "", "",
-                                        "Flächenvektor c", "", "",
-                                        "Flächenvektor a, X", "Stereo, Y", "Z", "Flächenvektor b", "", "", "Flächenvektor c"))
+                                        "Flächenvektor c", "", "", "Flächenvektor a, X", "Stereo, Y", "Z",
+                                        "Flächenvektor b", "", "", "Flächenvektor c"))
     plane_rl_x = getBar(plane_rl[:, 0],
                         'blue')  # , norm.pdf(plane_rl[:, 0], mean_rl[0], std_rl[0]), c='blue', label='RxL')
     plane_rl_y = getBar(plane_rl[:, 1],
@@ -465,6 +487,8 @@ if __name__ == "__main__":
     fig.add_trace(norm_ts_x, row=6, col=1)
     fig.add_trace(norm_ts_y, row=6, col=2)
     fig.add_trace(norm_ts_z, row=6, col=3)
+
+    fig.update_layout(title={'text': "100 Durchläufe alles"})
 
     # norm_v_rll = normal_distribution(v_rll)
     # norm_v_tll = normal_distribution(v_tll)

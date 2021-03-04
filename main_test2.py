@@ -7,8 +7,7 @@ import open3d as o3d
 from plotly.subplots import make_subplots
 import plotly.graph_objs as go
 from progressbar import progressbar
-from matplotlib import pyplot as plt
-import pandas as pd
+import plotly.figure_factory as ff
 
 
 def main(pcd, pcd_object, threshold, name, threshold_ransac):
@@ -60,8 +59,11 @@ def main(pcd, pcd_object, threshold, name, threshold_ransac):
     # norm_rt, domain_rtc = normal_distribution(plane_model_r, "R+T, " + name)
     # norm_lt, domain_ltc = normal_distribution(plane_model_l, "L+T, " + name)
     # norm_rl, domain_rlc = normal_distribution(plane_model_t, "R+L, " + name)
+    w1 = find_winkel(plane_model_l, plane_model_t, "Winkel L + T")
+    w2 = find_winkel(plane_model_l, plane_model_r, "Winkel L + R")
+    w3 = find_winkel(plane_model_r, plane_model_t, "Winkel R + T")
 
-    return plane_model_r[:, :3], plane_model_l[:, :3], plane_model_t[:, :3]
+    return w1, w2, w3
 
 
 def toPointCloud(points):
@@ -192,8 +194,11 @@ def getTrace2(x, y, z, c, label, s=2):
 def getBar(x, c):  # , y, label, c):
     bar = go.Histogram(
         x=x,
-        histnorm='probability density',
-        marker=dict(color=c))
+        marker=dict(color=c),
+        xbins=dict(size=0.001),
+        hoverinfo="all",
+        histfunc="sum",
+        histnorm='probability density')
     #     name=label,
     #     marker_color=c
     # )
@@ -317,12 +322,6 @@ if __name__ == "__main__":
     plane_rl, plane_ll, plane_tl = main(file_lidar, file_object_lidar, 0.1, "Lidar", 0.03)
     # for i in progressbar(range(100)):
     plane_rs, plane_ls, plane_ts = main(file_stereo, file_object_stereo_2, 0.05, "Stereo", 0.003)
-    # plane_rl = np.append(plane_rl, plane_rl_t, axis=0)
-    # plane_ll = np.append(plane_ll, plane_ll_t, axis=0)
-    # plane_tl = np.append(plane_tl, plane_tl_t, axis=0)
-    # plane_rs = np.append(plane_rs, plane_rs_t, axis=0)
-    # plane_ls = np.append(plane_ls, plane_ls_t, axis=0)
-    # plane_ts = np.append(plane_ts, plane_ts_t, axis=0)
 
     mean_rl, std_rl = normal_distribution(plane_rl, "R")
     mean_ll, std_ll = normal_distribution(plane_ll, "L")
@@ -331,9 +330,12 @@ if __name__ == "__main__":
     mean_ls, std_ls = normal_distribution(plane_ls, "L")
     mean_ts, std_ts = normal_distribution(plane_ts, "T")
 
+    # fig = ff.create_distplot([plane_rl[:, 0]], bin_size=.0005, group_labels=['R, Lidar, X'], curve_type='normal')
+
     fig = make_subplots(rows=6, cols=3,
-                        subplot_titles=("Winkel R + L", "Lidar", "", "Winkel T + L", "", "", "Winkel R + T", "", "",
-                                        "Winkel R + L", "Stereo", "", "Winkel T + L", "", "", "Winkel R + T"))
+                        subplot_titles=("Flächenvektor a, X", "Lidar, Y", "Z", "Flächenvektor b", "", "",
+                                        "Flächenvektor c", "", "", "Flächenvektor a, X", "Stereo, Y", "Z",
+                                        "Flächenvektor b", "", "", "Flächenvektor c"))
     plane_rl_x = getBar(plane_rl[:, 0],
                         'blue')  # , norm.pdf(plane_rl[:, 0], mean_rl[0], std_rl[0]), c='blue', label='RxL')
     plane_rl_y = getBar(plane_rl[:, 1],
@@ -400,25 +402,7 @@ if __name__ == "__main__":
     fig.add_trace(plane_ts_y, row=6, col=2)
     fig.add_trace(plane_ts_z, row=6, col=3)
 
-    # norm_v_rll = normal_distribution(v_rll)
-    # norm_v_tll = normal_distribution(v_tll)
-    # norm_v_rtl = normal_distribution(v_rtl)
-    # # norm_v_rls = normal_distribution(v_rls)
-    # # norm_v_tls = normal_distribution(v_tls)
-    # # norm_v_rts = normal_distribution(v_rts)
-    #
-    # # print("Verteilungen RLL", norm_v_rll)
-    # # print("Verteilungen TLL", norm_v_tll)
-    # # print("Verteilungen RTL", norm_v_rtl)
-    # # print("Verteilungen RLS", norm_v_rls)
-    # # print("Verteilungen TLS", norm_v_tls)
-    # # print("Verteilungen RTS", norm_v_rts)
-    #
-    # fig = make_subplots(rows=6, cols=3,
-    #                     subplot_titles=("Winkel R + L", "Lidar", "", "Winkel T + L", "", "", "Winkel R + T", "", "",
-    #                                     "Winkel R + L", "Stereo", "", "Winkel T + L", "", "", "Winkel R + T"))
-    #
-    norm_rl_x = getTrace(plane_rl[:, 0], (norm.pdf(plane_rl[:, 0], mean_rl[0], std_rl[0]) * std_rl[0]), s=4,
+    norm_rl_x = getTrace(plane_rl[:, 0], norm.pdf(plane_rl[:, 0], mean_rl[0], std_rl[0]), s=4,
                          c='lightcoral', label='RxL')
     norm_rl_y = getTrace(plane_rl[:, 1], norm.pdf(plane_rl[:, 1], mean_rl[1], std_rl[1]), s=4, c='lightcoral',
                          label='RyL')
@@ -483,5 +467,5 @@ if __name__ == "__main__":
     fig.add_trace(norm_ts_x, row=6, col=1)
     fig.add_trace(norm_ts_y, row=6, col=2)
     fig.add_trace(norm_ts_z, row=6, col=3)
-
+    fig.update_layout(title={'text': "100 Durchläufe Ransac"})
     fig.show()
