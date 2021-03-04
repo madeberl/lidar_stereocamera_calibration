@@ -1,6 +1,4 @@
 import argparse
-import os
-
 from progressbar import progressbar
 from sklearn.cluster import KMeans
 import numpy as np
@@ -8,8 +6,6 @@ import open3d as o3d
 import struct
 import plotly.graph_objs as go
 from scipy.spatial import distance
-from tkinter.filedialog import askdirectory
-from tkinter import Tk
 
 global debug
 
@@ -583,13 +579,18 @@ def inlier_trace(r_in, l_in, t_in, name, color):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--debug", action="store_true", help="Debug on/off")
-    parser.add_argument("-ml", "--mergelidar", action="store_true", help="Lidar files merging")
-    parser.add_argument("-ms", "--mergestereo", action="store_true", help="Stereo files merging")
+    parser.add_argument("-dl", "--distance_lidar", help="Value for Distance Computing for Lidar",
+                        default=0.05, type=float)
+    parser.add_argument("-ds", "--distance_stereo", help="Value for Distance Computing for Stereo",
+                        default=0.05, type=float)
+    parser.add_argument("-rl", "--ransac_lidar", help="Value for Ransac Threshold for Lidar",
+                        default=0.01, type=float)
+    parser.add_argument("-rs", "--ransac_stereo", help="Value for Ransac Threshold for Stereo",
+                        default=0.004, type=float)
     args = parser.parse_args()
     debug = args.debug
-
     """
-    Lidar Data
+    Lidar Data, have to be changed
     """
     lidar = "data/doppel_paket/seq_6.5m_styropor_pos1_0/lidar/merged.pcd", \
             "data/doppel_paket/seq_6.5m_empty_room_0/lidar/merged.pcd", \
@@ -600,7 +601,7 @@ if __name__ == "__main__":
                    "data/doppel_paket/seq_10m_pos1_0/lidar/merged.pcd", \
                    "data/doppel_paket/seq_10m_pos2_0/lidar/merged.pcd"
     """
-    Stereo Data
+    Stereo Data, have to be changed
     """
     stereo = "data/doppel_paket/seq_6.5m_styropor_pos1_0/stereo/merged.txt", \
              "data/doppel_paket/seq_6.5m_empty_room_0/stereo/merged.txt", \
@@ -631,7 +632,9 @@ if __name__ == "__main__":
         threshold = -0.5
         if i >= 2:
             threshold = 0
-
+        """
+        remove_points can be changed to remove_points_extended for cropping of x, y and z axles
+        """
         file_lidar = remove_points(file_lidar, threshold)
         file_object_lidar = remove_points(file_object_lidar, threshold)
 
@@ -645,16 +648,11 @@ if __name__ == "__main__":
         file_object_stereo = remove_points(file_object_stereo, threshold)
 
         """ Run main on Lidar and Stereo """
-        s_all_l_, m1l, m2l, m3l, i1l_, i2l_, i3l_ = main(file_lidar, file_object_lidar, 0.05, "Lidar",
-                                                         0.01)
-
-        s_all_l = np.append(s_all_l, s_all_l_, axis=0)
-        i1l = np.append(i1l, i1l_, axis=0)
-        i2l = np.append(i2l, i2l_, axis=0)
-        i3l = np.append(i3l, i3l_, axis=0)
+        s_all_l_, m1l, m2l, m3l, i1l_, i2l_, i3l_ = main(file_lidar, file_object_lidar, args.distancelidar,
+                                                         "Lidar", args.ransaclidar)
         print("Lidar finished")
-        s_all_s_, m1s, m2s, m3s, i1s_, i2s_, i3s_ = main(file_stereo, file_object_stereo, 0.05, "Stereo",
-                                                         0.004)
+        s_all_s_, m1s, m2s, m3s, i1s_, i2s_, i3s_ = main(file_stereo, file_object_stereo, args.distancestereo,
+                                                         "Stereo", args.ransacstereo)
 
         s_all_s = np.append(s_all_s, s_all_s_, axis=0)
         i1s = np.append(i1s, i1s_, axis=0)
