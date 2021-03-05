@@ -24,13 +24,13 @@ def main(pcd, pcd_object, threshold, name, threshold_ransac):
     Ransac on plane, with 3 randomly chosen start points and 500 iterations
     """
     for i in progressbar(range(100)):
-        a_in, a_out, plane_model_a_x, plane_name_a = ransac(right, threshold_ransac, 3, 500)
-        b_in, b_out, plane_model_b_x, plane_name_b = ransac(left, threshold_ransac, 3, 500)
-        c_in, c_out, plane_model_c_x, plane_name_c = ransac(top, threshold_ransac, 3, 500)
+        a_in, a_out, plane_model_a_, plane_name_a = ransac(right, threshold_ransac, 3, 500)
+        b_in, b_out, plane_model_b_, plane_name_b = ransac(left, threshold_ransac, 3, 500)
+        c_in, c_out, plane_model_c_, plane_name_c = ransac(top, threshold_ransac, 3, 500)
         x.append(i)
-        plane_model_a = np.append(plane_model_a, plane_model_a_x, axis=0)
-        plane_model_b = np.append(plane_model_b, plane_model_b_x, axis=0)
-        plane_model_c = np.append(plane_model_c, plane_model_c_x, axis=0)
+        plane_model_a = np.append(plane_model_a, plane_model_a_, axis=0)
+        plane_model_b = np.append(plane_model_b, plane_model_b_, axis=0)
+        plane_model_c = np.append(plane_model_c, plane_model_c_, axis=0)
 
     """
     Take mean of 100 ransac iterations
@@ -83,15 +83,15 @@ def main(pcd, pcd_object, threshold, name, threshold_ransac):
                             schnittpunkt7))
     mesh_1 = mesh_2 = mesh_3 = 0
     if debug:
-        test_function(schnittpunkt2, plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 2")
-        test_function(schnittpunkt3, plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 3")
-        test_function(schnittpunkt4, plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 4")
-        test_function(schnittpunkt5, plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 5")
-        test_function(schnittpunkt6, plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 6")
-        test_function(schnittpunkt7, plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 7")
         """
         return angle in degrees
         """
+        test_function(schnittpunkt2.reshape((3, 1)), plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 2")
+        test_function(schnittpunkt3.reshape((3, 1)), plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 3")
+        test_function(schnittpunkt4.reshape((3, 1)), plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 4")
+        test_function(schnittpunkt5.reshape((3, 1)), plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 5")
+        test_function(schnittpunkt6.reshape((3, 1)), plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 6")
+        test_function(schnittpunkt7.reshape((3, 1)), plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 7")
         w1 = find_winkel(vektor_rt, vektor_lt, f"R + L {name}")
         w2 = find_winkel(vektor_rl, vektor_rt, f"T + L {name}")
         w3 = find_winkel(vektor_rl, vektor_lt, f"R + T {name}")
@@ -287,13 +287,13 @@ def ransac(plane, threshold, n, i):
                                                num_iterations=i)
     [a, b, c, d] = plane_model
     name = equation(a, b, c)
-    if debug:
-        print(f"Plane equation {name}: {a:.2f}x + {b:.2f}y + {c:.2f}z + {d:.2f} = 0")
+    # if debug:
+    # print(f"Plane equation {name}: {a:.2f}x + {b:.2f}y + {c:.2f}z + {d:.2f} = 0")
     inlier_cloud = plane.select_by_index(inliers)
     outlier_cloud = plane.select_by_index(inliers, invert=True)
     inlier_cloud = np.asarray(inlier_cloud.points)
     outlier_cloud = np.asarray(outlier_cloud.points)
-    return inlier_cloud, outlier_cloud, np.array([[a, b, c, d]]), name
+    return inlier_cloud, outlier_cloud, np.array([[a, b, c, d]]), name # np.array([[a, b, c, d]])
 
 
 def getTrace(x, y, z, c, label, s=2):
@@ -648,12 +648,15 @@ if __name__ == "__main__":
         file_object_stereo = remove_points(file_object_stereo, threshold)
 
         """ Run main on Lidar and Stereo """
-        s_all_l_, m1l, m2l, m3l, i1l_, i2l_, i3l_ = main(file_lidar, file_object_lidar, args.distancelidar,
-                                                         "Lidar", args.ransaclidar)
+        s_all_l_, m1l, m2l, m3l, i1l_, i2l_, i3l_ = main(file_lidar, file_object_lidar, args.distance_lidar,
+                                                         "Lidar", args.ransac_lidar)
+        s_all_l = np.append(s_all_l, s_all_l_, axis=0)
+        i1l = np.append(i1l, i1l_, axis=0)
+        i2l = np.append(i2l, i2l_, axis=0)
+        i3l = np.append(i3l, i3l_, axis=0)
         print("Lidar finished")
-        s_all_s_, m1s, m2s, m3s, i1s_, i2s_, i3s_ = main(file_stereo, file_object_stereo, args.distancestereo,
-                                                         "Stereo", args.ransacstereo)
-
+        s_all_s_, m1s, m2s, m3s, i1s_, i2s_, i3s_ = main(file_stereo, file_object_stereo, args.distance_stereo,
+                                                         "Stereo", args.ransac_stereo)
         s_all_s = np.append(s_all_s, s_all_s_, axis=0)
         i1s = np.append(i1s, i1s_, axis=0)
         i2s = np.append(i2s, i2s_, axis=0)
@@ -682,5 +685,6 @@ if __name__ == "__main__":
         showGraph(
             "Oberflächen_ransac open3d",
             "Z", "X", "Y",
-            [schnittpunkt1l, m1l, m2l, m3l, i1l, i2l, i3l,
-             schnittpunkt1s, m1s, m2s, m3s, i1s, i2s, i3s])
+            [schnittpunkt1l, i1l, i2l, i3l,
+             schnittpunkt1s, i1s, i2s, i3s,
+             m1l, m2l, m3l, m1s, m2s, m3s])
