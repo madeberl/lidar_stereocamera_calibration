@@ -1,11 +1,10 @@
 import argparse
-from progressbar import progressbar
-from sklearn.cluster import KMeans
+import struct
 import numpy as np
 import open3d as o3d
-import struct
 import plotly.graph_objs as go
 from scipy.spatial import distance
+from sklearn.cluster import KMeans
 
 global debug
 
@@ -14,7 +13,7 @@ def main(pcd, pcd_object, threshold, name, threshold_ransac):
     object_isolated = compute_distance(pcd, pcd_object, threshold, name)  # remove points appearing in both data
 
     normals_estimated = normal_estimation(object_isolated)  # estimate normals
-    right, left, top = kmeans(normals_estimated)  # run kmean on object, returns planes detected
+    right, left, top = kmeans(normals_estimated, name)  # run kmean on object, returns planes detected
 
     plane_model_a = plane_model_b = plane_model_c = plane_model_r = plane_model_t = plane_model_l = np.empty((0, 4))
     a_in = b_in = c_in = a_out = b_out = c_out = r_in = l_in = t_in = np.empty((0, 3))
@@ -23,7 +22,7 @@ def main(pcd, pcd_object, threshold, name, threshold_ransac):
     """
     Ransac on plane, with 3 randomly chosen start points and 500 iterations
     """
-    for i in progressbar(range(100)):
+    for i in range(100):
         a_in, a_out, plane_model_a_, plane_name_a = ransac(right, threshold_ransac, 3, 500)
         b_in, b_out, plane_model_b_, plane_name_b = ransac(left, threshold_ransac, 3, 500)
         c_in, c_out, plane_model_c_, plane_name_c = ransac(top, threshold_ransac, 3, 500)
@@ -38,6 +37,17 @@ def main(pcd, pcd_object, threshold, name, threshold_ransac):
     plane_model_a = np.divide(np.sum(plane_model_a, axis=0), len(x))
     plane_model_b = np.divide(np.sum(plane_model_b, axis=0), len(x))
     plane_model_c = np.divide(np.sum(plane_model_c, axis=0), len(x))
+
+    if debug:
+        inl1 = getTrace(a_in[:, 0], a_in[:, 1], a_in[:, 2], c="green", s=4, label=f"{plane_name_a} inliers")
+        inl2 = getTrace(b_in[:, 0], b_in[:, 1], b_in[:, 2], c="green", s=4, label=f"{plane_name_b} inliers")
+        inl3 = getTrace(c_in[:, 0], c_in[:, 1], c_in[:, 2], c="green", s=4, label=f"{plane_name_c} inliers")
+        out1 = getTrace(a_out[:, 0], a_out[:, 1], a_out[:, 2], c="red", s=4, label=f"{plane_name_a} outliers")
+        out2 = getTrace(b_out[:, 0], b_out[:, 1], b_out[:, 2], c="red", s=4, label=f"{plane_name_b} outliers")
+        out3 = getTrace(c_out[:, 0], c_out[:, 1], c_out[:, 2], c="red", s=4, label=f"{plane_name_c} outliers")
+        showGraph(f"RANSAC {name}",
+                  "Z", "X", "Y",
+                  [inl1, inl2, inl3, out1, out2, out3])
 
     """
     Planes will be assigned to side
@@ -61,52 +71,48 @@ def main(pcd, pcd_object, threshold, name, threshold_ransac):
     elif plane_name_c == "Right":
         r_in, r_out, plane_model_r = c_in, c_out, plane_model_c
 
+    inliers = np.concatenate((t_in, l_in, r_in))
+
     """
-    Find intersections line and intersection points
+    Find intersections line
     """
-    point_rt1, point_rt2, vektor_rt = plane_intersect(plane_model_r, plane_model_t)
-    point_lt1, point_lt2, vektor_lt = plane_intersect(plane_model_l, plane_model_t)
-    point_rl1, point_rl2, vektor_rl = plane_intersect(plane_model_r, plane_model_l)
+    vektor_rt = plane_intersect(plane_model_r, plane_model_t)
+    vektor_lt = plane_intersect(plane_model_l, plane_model_t)
+    vektor_rl = plane_intersect(plane_model_r, plane_model_l)
 
     """
     Find intersections
     """
+    """ Intersection of all 3 planes """
     schnittpunkt = finde_intersection(plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 1")
+    """ Intersection down """
     schnittpunkt2 = intersection(vektor_rl, 0.4, schnittpunkt)
+    """ Intersection right top """
     schnittpunkt3 = intersection(vektor_rt, -0.35, schnittpunkt)
+    """ Intersection left top """
     schnittpunkt4 = intersection(vektor_lt, -0.45, schnittpunkt)
-
+    """ Intersection back top """
     schnittpunkt5 = intersection(vektor_lt, -0.45, schnittpunkt3)
-    schnittpunkt6 = intersection(vektor_lt, -0.45, schnittpunkt2)
-    schnittpunkt7 = intersection(vektor_rt, -0.35, schnittpunkt2)
+    """ Intersection right down """
+    schnittpunkt6 = intersection(vektor_rt, -0.35, schnittpunkt2)
+    """ Intersection left down """
+    schnittpunkt7 = intersection(vektor_lt, -0.45, schnittpunkt2)
     s_all = np.concatenate((schnittpunkt, schnittpunkt2, schnittpunkt3, schnittpunkt4, schnittpunkt5, schnittpunkt6,
                             schnittpunkt7))
-    mesh_1 = mesh_2 = mesh_3 = 0
     if debug:
         """
         return angle in degrees
         """
-        test_function(schnittpunkt2.reshape((3, 1)), plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 2")
-        test_function(schnittpunkt3.reshape((3, 1)), plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 3")
-        test_function(schnittpunkt4.reshape((3, 1)), plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 4")
-        test_function(schnittpunkt5.reshape((3, 1)), plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 5")
-        test_function(schnittpunkt6.reshape((3, 1)), plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 6")
-        test_function(schnittpunkt7.reshape((3, 1)), plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 7")
-        w1 = find_winkel(vektor_rt, vektor_lt, f"R + L {name}")
-        w2 = find_winkel(vektor_rl, vektor_rt, f"T + L {name}")
-        w3 = find_winkel(vektor_rl, vektor_lt, f"R + T {name}")
+        find_winkel(vektor_rt, vektor_lt, f"R + L {name}")
+        find_winkel(vektor_rl, vektor_rt, f"T + L {name}")
+        find_winkel(vektor_rl, vektor_lt, f"R + T {name}")
 
-        """
-        Draws line from original intersection to other 3 intersections
-        """
-        line_b = np.append(schnittpunkt, schnittpunkt2, axis=0)
-        line_r = np.append(schnittpunkt, schnittpunkt3, axis=0)
-        line_l = np.append(schnittpunkt, schnittpunkt4, axis=0)
-        mesh_1 = getMesh(line_b[:, 0], line_b[:, 1], line_b[:, 2], c='lightgreen', label=w3, v="legendonly")
-        mesh_2 = getMesh(line_r[:, 0], line_r[:, 1], line_r[:, 2], c='lightsalmon', label=w2, v="legendonly")
-        mesh_3 = getMesh(line_l[:, 0], line_l[:, 1], line_l[:, 2], c='lightsteelblue', label=w1, v="legendonly")
+    return s_all, inliers
 
-    return s_all, mesh_1, mesh_2, mesh_3, r_in, l_in, t_in
+
+"""
+Deprecated, only needed if Data is in binary format
+"""
 
 
 def convert_kitti_bin_to_pcd(bin, name):
@@ -131,6 +137,26 @@ def convert_kitti_bin_to_pcd(bin, name):
         o3d.visualization.draw_geometries([pcd], height=800, width=800, mesh_show_back_face=False)
     # o3d.io.write_point_cloud("data/" + name + ".ply", pcd)
     return pcd
+
+
+"""
+Section 1: Support functions
+"""
+
+
+def transform_stereo(ob):
+    """
+    Transformates Stereo data to lidar coordinate systems
+    :param ob: open3d point cloud
+    :return: open3d point cloud transformed
+    """
+    trans_matrix = np.array([[0., -1., 0.],
+                             [0., 0., -1.],
+                             [1., 0., 0.]])
+    np_object_isolated = np.array(ob.points)
+    object1 = np.matmul(np_object_isolated, trans_matrix)
+    object1 = toPointCloud(object1)
+    return object1
 
 
 def toPointCloud(points):
@@ -172,6 +198,92 @@ def remove_points(file, i):
     return pcd_new
 
 
+def plane_intersect(a, b):
+    """
+    calculate intersection points of planes
+    :param a: numpy array, plane 1
+    :param b: numpy array, plane 2
+    :return: 2 points on line of intersection, vector of line
+    """
+    a_vec, b_vec = np.array(a[:3]), np.array(b[:3])
+    aXb_vec = np.cross(a_vec, b_vec)
+
+    # A = np.array([a_vec, b_vec, aXb_vec])
+    # d = np.array([-a[3], -b[3], 0.]).reshape(3, 1)
+    # p_inter = np.linalg.solve(A, d).T
+    return aXb_vec # p_inter[0], (p_inter + aXb_vec)[0],
+
+
+def find_winkel(plane1, plane2, name):
+    """
+    calculate angle
+    :param plane1: numpy array, plane 1
+    :param plane2: numpy array, plane 2
+    :param name: string, name of plane
+    """
+    plane1 = np.squeeze(np.asarray(plane1))
+    plane2 = np.squeeze(np.asarray(plane2))
+    nenner = np.dot(plane1[:3], plane2[:3])
+    x_modulus = np.sqrt((plane1[:3] * plane1[:3]).sum())
+    y_modulus = np.sqrt((plane2[:3] * plane2[:3]).sum())
+    cos_angle = nenner / x_modulus / y_modulus
+    angle = np.arccos(cos_angle)
+    angle2 = angle * 360 / 2 / np.pi
+    print(f"Winkel {name}:", angle2)
+
+
+def geteuclideandistance(points_lidar, points_stereo):
+    """
+    Get euclidean distance of intersection points of lidar and stereo data
+    :param points_lidar: numpy array, intersection points lidar
+    :param points_stereo: numpy array, intersection points stereo
+    """
+    dist = []
+    for i in range(len(points_lidar)):
+        dist.append(distance.euclidean(points_lidar[i, :], points_stereo[i, :]))
+    print("Euclidean Distance", dist)
+
+
+def test_function(intersection, p1, p2, p3, name):
+    """
+    Tests intersections with all equations if equals 0, if not prints value
+    :param intersection: numpy array, intersection
+    :param p1: numpy array, plane 1
+    :param p2: numpy array, plane 2
+    :param p3: numpy array, plane 3
+    :param name: name of plane
+    """
+    test1 = (p1[0] * intersection[0]) + (p1[1] * intersection[1]) + (p1[2] * intersection[2]) + p1[3]
+    test2 = (p2[0] * intersection[0]) + (p2[1] * intersection[1]) + (p2[2] * intersection[2]) + p2[3]
+    test3 = (p3[0] * intersection[0]) + (p3[1] * intersection[1]) + (p3[2] * intersection[2]) + p3[3]
+    print(name)
+    if test1 != 0 or test1 != 0.2 or test1 != -0.2:
+        print("Testgleichung Plane 1: ", test1)
+    if test2 != 0 or test2 != 0.35 or test2 != -0.35:
+        print("Testgleichung Plane 2: ", test2)
+    if test3 != 0 or test3 != 0.45 or test3 != -0.45:
+        print("Testgleichung Plane 3: ", test3)
+
+
+def point_alignments(r, t, inlier, s_p):
+    """
+    Aligns stereo data on lidar data with given rotation and translation
+    :param inlier: numpy array, data of stereo packet
+    :param r: numpy array, rotation
+    :param t: numpy array, translation
+    :param s_p: numpy array, intersection points of stereo packet
+    :return: right side, left side, top side, intersection points, all transformed
+    """
+    inlier_s = np.add(np.dot(inlier, r.T), t.T)
+    s_p_t = np.add(np.dot(s_p, r.T), t.T)
+    return inlier_s, s_p_t
+
+
+"""
+Section 2: Algorithms
+"""
+
+
 def compute_distance(data, data_object, threshold, name):
     """
     Computes the distance between two point clouds and removes the points bigger then set threshold.
@@ -204,23 +316,6 @@ def statistical_outlier(cloud, name):
     return inlier_cloud
 
 
-def display_inlier_outlier(cloud, ind, string):
-    """
-    Shows points point cloud with outlier points (red) and inlier points (grey) after statistical outlier removal
-    :param cloud: open3d point cloud object
-    :param ind: index if outlier or inlier
-    :param string: name of object
-    """
-    inlier_cloud = cloud.select_by_index(ind)
-    outlier_cloud = cloud.select_by_index(ind, invert=True)
-
-    print("Showing outliers (red) and inliers (gray): ")
-    outlier_cloud.paint_uniform_color([1, 0, 0])
-    inlier_cloud.paint_uniform_color([0.8, 0.8, 0.8])
-    o3d.visualization.draw_geometries([inlier_cloud, outlier_cloud],
-                                      window_name=string, height=800, width=800, mesh_show_back_face=False)
-
-
 def normal_estimation(downpcd):
     """
     Estimates normales of point cloud
@@ -231,10 +326,12 @@ def normal_estimation(downpcd):
     downpcd.estimate_normals(
         search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.5, max_nn=200))
     downpcd.orient_normals_consistent_tangent_plane(200)
+    if debug:
+        showPointCloud(downpcd, "Normals", True)
     return downpcd
 
 
-def kmeans(pc):
+def kmeans(pc, name):
     """
     Applies k-Means Algorithm to object, with k-means+++
     :param pc: open3d point cloud
@@ -259,7 +356,7 @@ def kmeans(pc):
                       label='Right')  # match with blue=2 initial class
 
         showGraph(
-            "Oberflächen_kmean",
+            f"k-Means {name}",
             "Z", "X", "Y",
             [t1, t2, t3])  # , centroids])
 
@@ -293,7 +390,101 @@ def ransac(plane, threshold, n, i):
     outlier_cloud = plane.select_by_index(inliers, invert=True)
     inlier_cloud = np.asarray(inlier_cloud.points)
     outlier_cloud = np.asarray(outlier_cloud.points)
-    return inlier_cloud, outlier_cloud, np.array([[a, b, c, d]]), name # np.array([[a, b, c, d]])
+
+    return inlier_cloud, outlier_cloud, np.array([[a, b, c, d]]), name  # np.array([[a, b, c, d]])
+
+
+def icp(l_all, s_all):
+    """
+    Iterative closest point algorithm to find convergence between lidar and stereo data
+    :param l_all: numpy array, intersection points lidar
+    :param s_all: numpy array, intersection points stereo
+    :return: rotation and translation matrices
+    """
+    mass_center_l = np.divide(np.sum(l_all, axis=0), len(l_all))
+    mass_center_s = np.divide(np.sum(s_all, axis=0), len(l_all))
+    q = np.subtract(l_all, mass_center_l)
+    p = np.subtract(s_all, mass_center_s)
+    q = q.T
+    p = p.T
+    w = np.dot(q, p.T)
+    u_l, s_l, vh_l = np.linalg.svd(w)
+    r = np.dot(u_l, vh_l)
+    t = np.subtract(mass_center_l, np.dot(r, mass_center_s))
+    print("r", r)
+    print("t", t)
+    return r, t
+
+
+def intersection(equation, cm, intersect):
+    """
+    Find other intersection based on dimensions of object
+    :param equation: numpy array, vector of intersection line
+    :param cm: float, dimension of object in cm
+    :param intersect: numpy array, start intersection
+    :return: numpy array, calculated intersection point
+    """
+    a = np.multiply(equation, cm)
+    s = np.subtract(intersect.reshape(-1, 3), a)
+    s_shape = np.array(s)
+    return s_shape
+
+
+def equation(plane_x, plane_y, plane_z):
+    """
+    Gets side of given plane
+    :param plane_x: numpy array, x-value of plane equation
+    :param plane_y: numpy array, y-value of plane equation
+    :param plane_z: numpy array, z-value of plane equation
+    :return: plane name as string
+    """
+    plane_name = ""
+    if plane_x > 0 and plane_y > 0 and plane_z > 0:
+        plane_name = "Right"
+    elif plane_x < 0 and plane_z > 0:
+        plane_name = "Top"
+    elif plane_x < 0 and plane_z < 0:
+        plane_name = "Left"
+    return plane_name
+
+
+def finde_intersection(plane1, plane2, plane3, name):
+    """
+    Finds intersection points and test them against equations
+    :param plane1: numpy array, first plane
+    :param plane2: numpy array, second plane
+    :param plane3: numpy array, third plane
+    :param name: string, name of the plane
+    :return: numpy array with intersection
+    """
+    left_side = [plane1[:3]] + [plane2[:3]] + [plane3[:3]]
+    right_side = [[-plane1[3]]] + [[-plane2[3]]] + [[-plane3[3]]]
+    i_p = np.linalg.solve(left_side, right_side)
+    if debug:
+        test_function(i_p, plane1, plane2, plane3, name)
+    ip = np.array(i_p.reshape(-1, 3))
+    return ip
+
+
+"""
+Section 3: Plot functions
+"""
+
+
+def display_inlier_outlier(cloud, ind, string):
+    """
+    Shows points point cloud with outlier points (red) and inlier points (grey) after statistical outlier removal
+    :param cloud: open3d point cloud object
+    :param ind: index if outlier or inlier
+    :param string: name of object
+    """
+    inlier_cloud = cloud.select_by_index(ind)
+    outlier_cloud = cloud.select_by_index(ind, invert=True)
+    print("Showing outliers (red) and inliers (gray): ")
+    outlier_cloud.paint_uniform_color([1, 0, 0])
+    inlier_cloud.paint_uniform_color([0.8, 0.8, 0.8])
+    o3d.visualization.draw_geometries([inlier_cloud, outlier_cloud],
+                                      window_name=string, height=800, width=800, mesh_show_back_face=False)
 
 
 def getTrace(x, y, z, c, label, s=2):
@@ -336,77 +527,6 @@ def getMesh(x, y, z, c, label, v, s=4):
         visible=v
     )
     return surface_points
-
-
-def equation(plane_x, plane_y, plane_z):
-    """
-    Gets side of given plane
-    :param plane_x: numpy array, x-value of plane equation
-    :param plane_y: numpy array, y-value of plane equation
-    :param plane_z: numpy array, z-value of plane equation
-    :return: plane name as string
-    """
-    plane_name = ""
-    if plane_x > 0 and plane_y > 0 and plane_z > 0:
-        plane_name = "Right"
-    elif plane_x < 0 and plane_z > 0:
-        plane_name = "Top"
-    elif plane_x < 0 and plane_z < 0:
-        plane_name = "Left"
-    return plane_name
-
-
-def finde_intersection(plane1, plane2, plane3, name):
-    """
-    Finds intersection points and test them against equations
-    :param plane1: numpy array, first plane
-    :param plane2: numpy array, second plane
-    :param plane3: numpy array, third plane
-    :param name: string, name of the plane
-    :return: numpy array with intersection
-    """
-    left_side = [plane1[:3]] + [plane2[:3]] + [plane3[:3]]
-    right_side = [[-plane1[3]]] + [[-plane2[3]]] + [[-plane3[3]]]
-    i_p = np.linalg.solve(left_side, right_side)
-    if debug:
-        test_function(i_p, plane1, plane2, plane3, name)
-    ip = np.array(i_p.reshape(-1, 3))
-    return ip
-
-
-def test_function(intersection, p1, p2, p3, name):
-    """
-    Tests intersections with all equations if equals 0, if not prints value
-    :param intersection: numpy array, intersection
-    :param p1: numpy array, plane 1
-    :param p2: numpy array, plane 2
-    :param p3: numpy array, plane 3
-    :param name: name of plane
-    """
-    test1 = (p1[0] * intersection[0]) + (p1[1] * intersection[1]) + (p1[2] * intersection[2]) + p1[3]
-    test2 = (p2[0] * intersection[0]) + (p2[1] * intersection[1]) + (p2[2] * intersection[2]) + p2[3]
-    test3 = (p3[0] * intersection[0]) + (p3[1] * intersection[1]) + (p3[2] * intersection[2]) + p3[3]
-    print(name)
-    if test1 != 0 or test1 != 0.2 or test1 != -0.2:
-        print("Testgleichung Plane 1: ", test1)
-    if test2 != 0 or test2 != 0.35 or test2 != -0.35:
-        print("Testgleichung Plane 2: ", test2)
-    if test3 != 0 or test3 != 0.45 or test3 != -0.45:
-        print("Testgleichung Plane 3: ", test3)
-
-
-def intersection(equation, cm, intersect):
-    """
-    Find other intersection based on dimensions of object
-    :param equation: numpy array, vector of intersection line
-    :param cm: float, dimension of object in cm
-    :param intersect: numpy array, start intersection
-    :return: numpy array, calculated intersection point
-    """
-    a = np.multiply(equation, cm)
-    s = np.subtract(intersect.reshape(-1, 3), a)
-    s_shape = np.array(s)
-    return s_shape
 
 
 def showPointCloud(object, name, show_normal):
@@ -453,134 +573,46 @@ def showGraph(title, x_colname, y_colname, z_colname, traces):
     fig.show()
 
 
-def plane_intersect(a, b):
-    """
-    calculate intersection points of planes
-    :param a: numpy array, plane 1
-    :param b: numpy array, plane 2
-    :return: 2 points on line of intersection, vector of line
-    """
-    a_vec, b_vec = np.array(a[:3]), np.array(b[:3])
-    aXb_vec = np.cross(a_vec, b_vec)
-
-    A = np.array([a_vec, b_vec, aXb_vec])
-    d = np.array([-a[3], -b[3], 0.]).reshape(3, 1)
-    p_inter = np.linalg.solve(A, d).T
-    return p_inter[0], (p_inter + aXb_vec)[0], aXb_vec
-
-
-def find_winkel(plane1, plane2, name):
-    """
-    calculate angle
-    :param plane1: numpy array, plane 1
-    :param plane2: numpy array, plane 2
-    :param name: string, name of plane
-    :return: string, name and angle of the two planes
-    """
-    plane1 = np.squeeze(np.asarray(plane1))
-    plane2 = np.squeeze(np.asarray(plane2))
-    nenner = np.dot(plane1[:3], plane2[:3])
-    x_modulus = np.sqrt((plane1[:3] * plane1[:3]).sum())
-    y_modulus = np.sqrt((plane2[:3] * plane2[:3]).sum())
-    cos_angle = nenner / x_modulus / y_modulus
-    angle = np.arccos(cos_angle)
-    angle2 = angle * 360 / 2 / np.pi
-    print(f"Winkel {name}:", angle2)
-    angle2 = str(f": {angle2:.2f}")
-    return name + angle2
-
-
-def transform_stereo(ob):
-    """
-    Transformates Stereo data to lidar coordinate systems
-    :param ob: open3d point cloud
-    :return: open3d point cloud transformed
-    """
-    trans_matrix = np.array([[0., -1., 0.],
-                             [0., 0., -1.],
-                             [1., 0., 0.]])
-    np_object_isolated = np.array(ob.points)
-    object1 = np.matmul(np_object_isolated, trans_matrix)
-    object1 = toPointCloud(object1)
-    return object1
-
-
-def geteuclideandistance(points_lidar, points_stereo):
-    """
-    Get euclidean distance of intersection points of lidar and stereo data
-    :param points_lidar: numpy array, intersection points lidar
-    :param points_stereo: numpy array, intersection points stereo
-    """
-    dist = []
-    for i in range(len(points_lidar)):
-        dist.append(distance.euclidean(points_lidar[i, :], points_stereo[i, :]))
-    print("Euclidean Distance", dist)
-
-
-def icp(l_all, s_all):
-    """
-    Iterative closest point algorithm to find convergence between lidar and stereo data
-    :param l_all: numpy array, intersection points lidar
-    :param s_all: numpy array, intersection points stereo
-    :return: rotation and translation matrices
-    """
-    mass_center_l = np.divide(np.sum(l_all, axis=0), len(l_all))
-    mass_center_s = np.divide(np.sum(s_all, axis=0), len(l_all))
-    q = np.subtract(l_all, mass_center_l)
-    p = np.subtract(s_all, mass_center_s)
-    q = q.T
-    p = p.T
-    w = np.dot(q, p.T)
-    u_l, s_l, vh_l = np.linalg.svd(w)
-    r = np.dot(u_l, vh_l)
-    t = np.subtract(mass_center_l, np.dot(r, mass_center_s))
-    print("r", r)
-    print("t", t)
-    return r, t
-
-
-def point_alignments(r, t, rs_in, ls_in, ts_in, s_p):
-    """
-    Aligns stereo data on lidar data with given rotation and translation
-    :param r: numpy array, rotation
-    :param t: numpy array, translation
-    :param rs_in: numpy array, right side of stereo packet
-    :param ls_in: numpy array, left side of stereo packet
-    :param ts_in: numpy array, top side of stereo packet
-    :param s_p: numpy array, intersection points of stereo packet
-    :return: right side, left side, top side, intersection points, all transformed
-    """
-    rs_in_t = np.add(np.dot(rs_in, r.T), t.T)
-    ls_in_t = np.add(np.dot(ls_in, r.T), t.T)
-    ts_in_t = np.add(np.dot(ts_in, r.T), t.T)
-    s_p_t = np.add(np.dot(s_p, r.T), t.T)
-    return rs_in_t, ls_in_t, ts_in_t, s_p_t
-
-
-def inlier_trace(r_in, l_in, t_in, name, color):
+def inlier_trace(inlier_comp, name, color):
     """
     prepares data for plotly
-    :param r_in: right side of packet
-    :param l_in: left side of packet
-    :param t_in: top side of packet
+    :param inlier_comp: numpy array, data of packet
     :param name: name of packet side
     :param color: color of points
     :return: plotly trace data
     """
-    inlier_1 = getTrace(t_in[:, 0], t_in[:, 1], t_in[:, 2],
-                        s=4, c=color, label=f'Top inliers {name}')
-    inlier_2 = getTrace(l_in[:, 0], l_in[:, 1], l_in[:, 2],
-                        s=4, c=color, label=f'Left inliers {name}')
-    inlier_3 = getTrace(r_in[:, 0], r_in[:, 1], r_in[:, 2],
-                        s=4, c=color, label=f'Right inliers {name}')
-    return inlier_1, inlier_2, inlier_3
+    inlier_1 = getTrace(inlier_comp[:, 0], inlier_comp[:, 1], inlier_comp[:, 2],
+                        s=4, c=color, label=f'Inliers {name}')
+    return inlier_1
+
+
+def drawIntersectionLines(intersections, name, color):
+    """
+    prepares data for plotly, namely plots intersection lines
+    :param intersections: numpy array with all intersection points
+    :param name: name of point cloud
+    :param color: color of plotted lines
+    :return: plotly trace lines
+    """
+    line_1 = np.concatenate(([intersections[0]], [intersections[2]], [intersections[4]],
+                             [intersections[3]], [intersections[0]]), axis=0)
+    line_2 = np.concatenate(([intersections[0]], [intersections[1]], [intersections[5]], [intersections[2]]), axis=0)
+    line_3 = np.concatenate(([intersections[1]], [intersections[6]], [intersections[3]]), axis=0)
+
+    line_1 = getMesh(line_1[:, 0], line_1[:, 1], line_1[:, 2],
+                     c=color, label=f"{name}", v="legendonly")
+    line_2 = getMesh(line_2[:, 0], line_2[:, 1], line_2[:, 2],
+                     c=color, label=f"{name}", v="legendonly")
+    line_3 = getMesh(line_3[:, 0], line_3[:, 1], line_3[:, 2],
+                     c=color, label=f"{name}", v="legendonly")
+    return line_1, line_2, line_3
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--debug", action="store_true", help="Debug on/off")
     parser.add_argument("-dl", "--distance_lidar", help="Value for Distance Computing for Lidar",
-                        default=0.05, type=float)
+                        default=0.1, type=float)
     parser.add_argument("-ds", "--distance_stereo", help="Value for Distance Computing for Stereo",
                         default=0.05, type=float)
     parser.add_argument("-rl", "--ransac_lidar", help="Value for Ransac Threshold for Lidar",
@@ -592,27 +624,37 @@ if __name__ == "__main__":
     """
     Lidar Data, have to be changed
     """
-    lidar = "data/doppel_paket/seq_6.5m_styropor_pos1_0/lidar/merged.pcd", \
+    lidar = "data/doppel_paket/seq_6.5m_styropor_pos1_0/lidar/1611244442.622.pcd", \
+            "data/doppel_paket/seq_6.5m_styropor_pos2_0/lidar/merged.pcd", \
             "data/doppel_paket/seq_6.5m_empty_room_0/lidar/merged.pcd", \
             "data/doppel_paket/seq_10m_styropor_pos1_0/lidar/merged.pcd", \
             "data/doppel_paket/seq_10m_styropor_pos2_0/lidar/merged.pcd"
-    object_lidar = "data/doppel_paket/seq_6.5m_pos1_0/lidar/merged.pcd", \
+    object_lidar = "data/doppel_paket/seq_6.5m_pos1_0/lidar/1611244398.218.pcd", \
+                   "data/doppel_paket/seq_6.5m_pos2_0/lidar/1611244497.046.pcd", \
+                   "data/doppel_paket/seq_6.5m_pos1_0/lidar/merged.pcd", \
                    "data/doppel_paket/seq_6.5m_pos2_0/lidar/merged.pcd", \
                    "data/doppel_paket/seq_10m_pos1_0/lidar/merged.pcd", \
                    "data/doppel_paket/seq_10m_pos2_0/lidar/merged.pcd"
     """
     Stereo Data, have to be changed
     """
-    stereo = "data/doppel_paket/seq_6.5m_styropor_pos1_0/stereo/merged.txt", \
+    stereo = "data/doppel_paket/seq_6.5m_styropor_pos1_0/stereo/1611244446.276.txt", \
+             "data/doppel_paket/seq_6.5m_styropor_pos2_0/stereo/merged.txt", \
              "data/doppel_paket/seq_6.5m_empty_room_0/stereo/merged.txt", \
              "data/doppel_paket/seq_10m_styropor_pos1_0/stereo/merged.txt", \
              "data/doppel_paket/seq_10m_styropor_pos2_0/stereo/merged.txt"
-    object_stereo = "data/doppel_paket/seq_6.5m_pos1_0/stereo/merged.txt", \
+    object_stereo = "data/doppel_paket/seq_6.5m_pos1_0/stereo/1611244400.579.txt", \
+                    "data/doppel_paket/seq_6.5m_pos2_0/stereo/1611244498.316.txt", \
+                    "data/doppel_paket/seq_6.5m_pos1_0/stereo/merged.txt", \
                     "data/doppel_paket/seq_6.5m_pos2_0/stereo/merged.txt", \
                     "data/doppel_paket/seq_10m_pos1_0/stereo/merged.txt", \
                     "data/doppel_paket/seq_10m_pos2_0/stereo/merged.txt"
 
-    s_all_l = s_all_s = i1l = i2l = i3l = i1s = i2s = i3s = np.empty((0, 3))
+    lidar = lidar[:1]
+    object_lidar = object_lidar[:1]
+    stereo = stereo[:1]
+    object_stereo = object_stereo[:1]
+    s_all_l = s_all_s = inliers_l = inliers_s = np.empty((0, 3))
     for i in range(len(lidar)):
         """
         Read Data
@@ -648,33 +690,52 @@ if __name__ == "__main__":
         file_object_stereo = remove_points(file_object_stereo, threshold)
 
         """ Run main on Lidar and Stereo """
-        s_all_l_, m1l, m2l, m3l, i1l_, i2l_, i3l_ = main(file_lidar, file_object_lidar, args.distance_lidar,
-                                                         "Lidar", args.ransac_lidar)
+        s_all_l_, inliers_l_ = main(file_lidar, file_object_lidar, args.distance_lidar,
+                                    "Lidar", args.ransac_lidar)
         s_all_l = np.append(s_all_l, s_all_l_, axis=0)
-        i1l = np.append(i1l, i1l_, axis=0)
-        i2l = np.append(i2l, i2l_, axis=0)
-        i3l = np.append(i3l, i3l_, axis=0)
+        inliers_l = np.append(inliers_l, inliers_l_, axis=0)
         print("Lidar finished")
-        s_all_s_, m1s, m2s, m3s, i1s_, i2s_, i3s_ = main(file_stereo, file_object_stereo, args.distance_stereo,
-                                                         "Stereo", args.ransac_stereo)
+        s_all_s_, inliers_s_ = main(file_stereo, file_object_stereo, args.distance_stereo,
+                                    "Stereo", args.ransac_stereo)
         s_all_s = np.append(s_all_s, s_all_s_, axis=0)
-        i1s = np.append(i1s, i1s_, axis=0)
-        i2s = np.append(i2s, i2s_, axis=0)
-        i3s = np.append(i3s, i3s_, axis=0)
+        inliers_s = np.append(inliers_s, inliers_s_, axis=0)
         print("Stereo finished")
+
+    """
+    Show point clouds before icp
+    """
+    if debug:
+        inliers1_l = inlier_trace(inliers_l, "Lidar", "green")
+        inliers1_s = inlier_trace(inliers_s, "Stereo", "orange")
+
+        schnittpunkt1l = getTrace(s_all_l[:, 0], s_all_l[:, 1], s_all_l[:, 2], s=6, c='blue',
+                                  label=f'S: Lidar')
+
+        schnittpunkt1s = getTrace(s_all_s[:, 0], s_all_s[:, 1], s_all_s[:, 2], s=6, c='red',
+                                  label=f'S: Stereo')
+        showGraph(
+            "Point Clouds",
+            "Z", "X", "Y",
+            [schnittpunkt1l, inliers1_l,
+             schnittpunkt1s, inliers1_s])
 
     """ Compute center of mass and singular value decomposition """
     rotation, translation = icp(s_all_l, s_all_s)
     """ Allign Stereo data to lidar data """
-    i1s, i2s, i3s, s_all_s = point_alignments(rotation, translation, i1s, i2s, i3s, s_all_s)
+    inliers_s, s_all_s = point_alignments(rotation, translation, inliers_s, s_all_s)
 
     """ Get euclidean distance between intersections """
     geteuclideandistance(s_all_s, s_all_l)
 
+    """
+    Show point clouds after icp
+    """
     if debug:
+        l1, l2, l3 = drawIntersectionLines(s_all_l, "Lidar", "lightsteelblue")
+        s1, s2, s3 = drawIntersectionLines(s_all_s, "Stereo", "salmon")
         """ Build trace for plotly """
-        i1l, i2l, i3l = inlier_trace(i1l, i2l, i3l, "Lidar", "green")
-        i1s, i2s, i3s = inlier_trace(i1s, i2s, i3s, "Stereo", "orange")
+        inliers_l = inlier_trace(inliers_l, "Lidar", "green")
+        inliers_s = inlier_trace(inliers_s, "Stereo", "orange")
 
         schnittpunkt1l = getTrace(s_all_l[:, 0], s_all_l[:, 1], s_all_l[:, 2], s=6, c='blue',
                                   label=f'S: Lidar')
@@ -683,8 +744,10 @@ if __name__ == "__main__":
                                   label=f'S: Stereo')
 
         showGraph(
-            "Oberflächen_ransac open3d",
+            "Point Clouds aligned",
             "Z", "X", "Y",
-            [schnittpunkt1l, i1l, i2l, i3l,
-             schnittpunkt1s, i1s, i2s, i3s,
-             m1l, m2l, m3l, m1s, m2s, m3s])
+            [schnittpunkt1l, inliers_l,
+             schnittpunkt1s, inliers_s,
+             l1, l2, l3,
+             s1, s2, s3])
+
