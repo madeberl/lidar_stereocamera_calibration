@@ -8,19 +8,20 @@ if __name__ == "__main__":
     Tk().withdraw()
     path = askdirectory(initialdir=os.getcwd(), title="Folder")
     dirListing = os.listdir('.')
-    xyz = np.empty((0, 3))
     subdirs = [x[0] for x in os.walk(path)]
     for subdir in subdirs:
         files = os.walk(subdir).__next__()[2]
         os.chdir(subdir)
         if len(files) > 0:
+            xyz = np.empty((0, 3))
             r = []
             for file in files:
-                if file.endswith(".pcd"):
+                if file.endswith(".pcd") and file != "merged.pcd":
                     pcd = o3d.io.read_point_cloud(file)
                     points = np.asarray(pcd.points)
+                    number_pc = number_pc + len(points)
                     xyz = np.append(xyz, points, axis=0)
-                if file.endswith(".txt"):
+                elif file.endswith(".txt") and file != "merged.txt":
                     r.append(file)
             if file.endswith(".pcd"):
                 point_cloud = o3d.geometry.PointCloud()
@@ -31,24 +32,8 @@ if __name__ == "__main__":
                 with open('merged.txt', 'w') as outfile:
                     for fname in r:
                         with open(fname) as infile:
+                            number_txt = number_txt + len(infile.readlines())
                             for line in infile:
                                 outfile.write(line)
                 print(f"{subdir} closed")
                 outfile.close()
-
-
-
-
-
-    # editFiles = []
-    # xyz = np.empty((0, 3))
-    # for item in dirListing:
-    #     if item != 'merged.pcd':
-    #         editFiles.append(item)
-    # for file in editFiles:
-    #     pcd = o3d.io.read_point_cloud(file)
-    #     points = np.asarray(pcd.points)
-    #     xyz = np.append(xyz, points, axis=0)
-    # point_cloud = o3d.geometry.PointCloud()
-    # point_cloud.points = o3d.utility.Vector3dVector(xyz)
-    # o3d.io.write_point_cloud("merged.pcd", point_cloud)

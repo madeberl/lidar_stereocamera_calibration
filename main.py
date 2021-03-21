@@ -1,5 +1,7 @@
 import argparse
 import struct
+import time
+
 import numpy as np
 import open3d as o3d
 import plotly.graph_objs as go
@@ -23,9 +25,9 @@ def main(pcd, pcd_object, threshold, name, threshold_ransac):
     Ransac on plane, with 3 randomly chosen start points and 500 iterations
     """
     for i in range(100):
-        a_in, a_out, plane_model_a_, plane_name_a = ransac(right, threshold_ransac, 3, 500)
-        b_in, b_out, plane_model_b_, plane_name_b = ransac(left, threshold_ransac, 3, 500)
-        c_in, c_out, plane_model_c_, plane_name_c = ransac(top, threshold_ransac, 3, 500)
+        a_in, a_out, plane_model_a_, plane_name_a = ransac(right, threshold_ransac, 3, 1000)
+        b_in, b_out, plane_model_b_, plane_name_b = ransac(left, threshold_ransac, 3, 1000)
+        c_in, c_out, plane_model_c_, plane_name_c = ransac(top, threshold_ransac, 3, 1000)
         x.append(i)
         plane_model_a = np.append(plane_model_a, plane_model_a_, axis=0)
         plane_model_b = np.append(plane_model_b, plane_model_b_, axis=0)
@@ -135,7 +137,6 @@ def convert_kitti_bin_to_pcd(bin, name):
     pcd = toPointCloud(np_pcd)
     if debug:
         o3d.visualization.draw_geometries([pcd], height=800, width=800, mesh_show_back_face=False)
-    # o3d.io.write_point_cloud("data/" + name + ".ply", pcd)
     return pcd
 
 
@@ -265,18 +266,16 @@ def test_function(intersection, p1, p2, p3, name):
         print("Testgleichung Plane 3: ", test3)
 
 
-def point_alignments(r, t, inlier, s_p):
+def point_alignments(r, t, datapoints):
     """
     Aligns stereo data on lidar data with given rotation and translation
-    :param inlier: numpy array, data of stereo packet
+    :param datapoints: numpy array, data of stereo packet
     :param r: numpy array, rotation
     :param t: numpy array, translation
-    :param s_p: numpy array, intersection points of stereo packet
     :return: right side, left side, top side, intersection points, all transformed
     """
-    inlier_s = np.add(np.dot(inlier, r.T), t.T)
-    s_p_t = np.add(np.dot(s_p, r.T), t.T)
-    return inlier_s, s_p_t
+    points_aligned = np.add(np.dot(datapoints, r.T), t.T)
+    return points_aligned
 
 
 """
@@ -309,7 +308,7 @@ def statistical_outlier(cloud, name):
     :param name: name of the object
     :return: open3d point cloud object with reduced or no noise
     """
-    cl, ind = cloud.remove_statistical_outlier(nb_neighbors=3000, std_ratio=0.01)
+    cl, ind = cloud.remove_statistical_outlier(nb_neighbors=500, std_ratio=0.01)
     inlier_cloud = cloud.select_by_index(ind)
     if debug:
         display_inlier_outlier(cloud, ind, name)
@@ -339,7 +338,7 @@ def kmeans(pc, name):
     """
     normals = np.asarray(pc.normals)
     points = np.asarray(pc.points)
-    kmeans = KMeans(n_clusters=3, init='k-means++', max_iter=1000, n_init=10, random_state=100)
+    kmeans = KMeans(n_clusters=3, init='k-means++', max_iter=1000, n_init=10)
 
     y_kmeans = kmeans.fit_predict(normals)
     # visualising the clusters
@@ -609,6 +608,7 @@ def drawIntersectionLines(intersections, name, color):
 
 
 if __name__ == "__main__":
+    start_time = time.time()
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--debug", action="store_true", help="Debug on/off")
     parser.add_argument("-dl", "--distance_lidar", help="Value for Distance Computing for Lidar",
@@ -625,13 +625,13 @@ if __name__ == "__main__":
     Lidar Data, have to be changed
     """
     lidar = "data/doppel_paket/seq_6.5m_styropor_pos1_0/lidar/1611244442.622.pcd", \
-            "data/doppel_paket/seq_6.5m_styropor_pos2_0/lidar/merged.pcd", \
+            "data/doppel_paket/seq_6.5m_empty_room_0/lidar/1611243759.606.pcd", \
+            "data/doppel_paket/seq_6.5m_styropor_pos1_0/lidar/merged.pcd", \
             "data/doppel_paket/seq_6.5m_empty_room_0/lidar/merged.pcd", \
             "data/doppel_paket/seq_10m_styropor_pos1_0/lidar/merged.pcd", \
             "data/doppel_paket/seq_10m_styropor_pos2_0/lidar/merged.pcd"
     object_lidar = "data/doppel_paket/seq_6.5m_pos1_0/lidar/1611244398.218.pcd", \
-                   "data/doppel_paket/seq_6.5m_pos2_0/lidar/1611244497.046.pcd", \
-                   "data/doppel_paket/seq_6.5m_pos1_0/lidar/merged.pcd", \
+                   "data/doppel_paket/seq_6.5m_pos2_0/lidar/1611244495.292.pcd", \
                    "data/doppel_paket/seq_6.5m_pos2_0/lidar/merged.pcd", \
                    "data/doppel_paket/seq_10m_pos1_0/lidar/merged.pcd", \
                    "data/doppel_paket/seq_10m_pos2_0/lidar/merged.pcd"
@@ -639,21 +639,20 @@ if __name__ == "__main__":
     Stereo Data, have to be changed
     """
     stereo = "data/doppel_paket/seq_6.5m_styropor_pos1_0/stereo/1611244446.276.txt", \
-             "data/doppel_paket/seq_6.5m_styropor_pos2_0/stereo/merged.txt", \
+             "data/doppel_paket/seq_6.5m_empty_room_0/stereo/1611243765.143.txt", \
              "data/doppel_paket/seq_6.5m_empty_room_0/stereo/merged.txt", \
              "data/doppel_paket/seq_10m_styropor_pos1_0/stereo/merged.txt", \
              "data/doppel_paket/seq_10m_styropor_pos2_0/stereo/merged.txt"
     object_stereo = "data/doppel_paket/seq_6.5m_pos1_0/stereo/1611244400.579.txt", \
-                    "data/doppel_paket/seq_6.5m_pos2_0/stereo/1611244498.316.txt", \
-                    "data/doppel_paket/seq_6.5m_pos1_0/stereo/merged.txt", \
+                    "data/doppel_paket/seq_6.5m_pos2_0/stereo/1611244497.982.txt", \
                     "data/doppel_paket/seq_6.5m_pos2_0/stereo/merged.txt", \
                     "data/doppel_paket/seq_10m_pos1_0/stereo/merged.txt", \
                     "data/doppel_paket/seq_10m_pos2_0/stereo/merged.txt"
 
-    lidar = lidar[:1]
-    object_lidar = object_lidar[:1]
-    stereo = stereo[:1]
-    object_stereo = object_stereo[:1]
+    lidar = lidar[:2]
+    object_lidar = object_lidar[:2]
+    stereo = stereo[:2]
+    object_stereo = object_stereo[:2]
     s_all_l = s_all_s = inliers_l = inliers_s = np.empty((0, 3))
     for i in range(len(lidar)):
         """
@@ -683,11 +682,11 @@ if __name__ == "__main__":
         """
         Transform Stereodata to Lidar coordinate system
         """
-        file_stereo = transform_stereo(file_stereo)
-        file_object_stereo = transform_stereo(file_object_stereo)
+        file_stereo_t = transform_stereo(file_stereo)
+        file_object_stereo_t = transform_stereo(file_object_stereo)
 
-        file_stereo = remove_points(file_stereo, threshold)
-        file_object_stereo = remove_points(file_object_stereo, threshold)
+        file_stereo_c = remove_points(file_stereo_t, threshold)
+        file_object_stereo_c = remove_points(file_object_stereo_t, threshold)
 
         """ Run main on Lidar and Stereo """
         s_all_l_, inliers_l_ = main(file_lidar, file_object_lidar, args.distance_lidar,
@@ -695,7 +694,7 @@ if __name__ == "__main__":
         s_all_l = np.append(s_all_l, s_all_l_, axis=0)
         inliers_l = np.append(inliers_l, inliers_l_, axis=0)
         print("Lidar finished")
-        s_all_s_, inliers_s_ = main(file_stereo, file_object_stereo, args.distance_stereo,
+        s_all_s_, inliers_s_ = main(file_stereo_c, file_object_stereo_c, args.distance_stereo,
                                     "Stereo", args.ransac_stereo)
         s_all_s = np.append(s_all_s, s_all_s_, axis=0)
         inliers_s = np.append(inliers_s, inliers_s_, axis=0)
@@ -722,7 +721,8 @@ if __name__ == "__main__":
     """ Compute center of mass and singular value decomposition """
     rotation, translation = icp(s_all_l, s_all_s)
     """ Allign Stereo data to lidar data """
-    inliers_s, s_all_s = point_alignments(rotation, translation, inliers_s, s_all_s)
+    inliers_s = point_alignments(rotation, translation, inliers_s)
+    s_all_s = point_alignments(rotation, translation, s_all_s)
 
     """ Get euclidean distance between intersections """
     geteuclideandistance(s_all_s, s_all_l)
@@ -750,4 +750,4 @@ if __name__ == "__main__":
              schnittpunkt1s, inliers_s,
              l1, l2, l3,
              s1, s2, s3])
-
+    print("--- %s seconds ---" % (time.time() - start_time))
