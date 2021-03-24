@@ -204,15 +204,12 @@ def plane_intersect(a, b):
     calculate intersection points of planes
     :param a: numpy array, plane 1
     :param b: numpy array, plane 2
-    :return: 2 points on line of intersection, vector of line
+    :return: vector of line
     """
     a_vec, b_vec = np.array(a[:3]), np.array(b[:3])
     aXb_vec = np.cross(a_vec, b_vec)
 
-    # A = np.array([a_vec, b_vec, aXb_vec])
-    # d = np.array([-a[3], -b[3], 0.]).reshape(3, 1)
-    # p_inter = np.linalg.solve(A, d).T
-    return aXb_vec # p_inter[0], (p_inter + aXb_vec)[0],
+    return aXb_vec
 
 
 def find_winkel(plane1, plane2, name):
@@ -323,7 +320,7 @@ def normal_estimation(downpcd):
     """
     downpcd.normals = o3d.utility.Vector3dVector(np.zeros((1, 3)))
     downpcd.estimate_normals(
-        search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.5, max_nn=200))
+        search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=50))
     downpcd.orient_normals_consistent_tangent_plane(200)
     if debug:
         showPointCloud(downpcd, "Normals", True)
@@ -572,19 +569,6 @@ def showGraph(title, x_colname, y_colname, z_colname, traces):
     fig.show()
 
 
-def inlier_trace(inlier_comp, name, color):
-    """
-    prepares data for plotly
-    :param inlier_comp: numpy array, data of packet
-    :param name: name of packet side
-    :param color: color of points
-    :return: plotly trace data
-    """
-    inlier_1 = getTrace(inlier_comp[:, 0], inlier_comp[:, 1], inlier_comp[:, 2],
-                        s=4, c=color, label=f'Inliers {name}')
-    return inlier_1
-
-
 def drawIntersectionLines(intersections, name, color):
     """
     prepares data for plotly, namely plots intersection lines
@@ -625,34 +609,37 @@ if __name__ == "__main__":
     Lidar Data, have to be changed
     """
     lidar = "data/doppel_paket/seq_6.5m_styropor_pos1_0/lidar/1611244442.622.pcd", \
+            "data/doppel_paket/seq_10m_styropor_pos1_0/lidar/merged.pcd", \
+            "data/doppel_paket/seq_10m_styropor_pos2_0/lidar/merged.pcd", \
             "data/doppel_paket/seq_6.5m_empty_room_0/lidar/1611243759.606.pcd", \
             "data/doppel_paket/seq_6.5m_styropor_pos1_0/lidar/merged.pcd", \
-            "data/doppel_paket/seq_6.5m_empty_room_0/lidar/merged.pcd", \
-            "data/doppel_paket/seq_10m_styropor_pos1_0/lidar/merged.pcd", \
-            "data/doppel_paket/seq_10m_styropor_pos2_0/lidar/merged.pcd"
+            "data/doppel_paket/seq_6.5m_empty_room_0/lidar/merged.pcd"
+
     object_lidar = "data/doppel_paket/seq_6.5m_pos1_0/lidar/1611244398.218.pcd", \
-                   "data/doppel_paket/seq_6.5m_pos2_0/lidar/1611244495.292.pcd", \
-                   "data/doppel_paket/seq_6.5m_pos2_0/lidar/merged.pcd", \
                    "data/doppel_paket/seq_10m_pos1_0/lidar/merged.pcd", \
-                   "data/doppel_paket/seq_10m_pos2_0/lidar/merged.pcd"
+                   "data/doppel_paket/seq_10m_pos2_0/lidar/merged.pcd", \
+                   "data/doppel_paket/seq_6.5m_pos2_0/lidar/1611244495.292.pcd", \
+                   "data/doppel_paket/seq_6.5m_pos2_0/lidar/merged.pcd"
+
     """
     Stereo Data, have to be changed
     """
     stereo = "data/doppel_paket/seq_6.5m_styropor_pos1_0/stereo/1611244446.276.txt", \
+             "data/doppel_paket/seq_10m_styropor_pos1_0/stereo/merged.txt", \
+             "data/doppel_paket/seq_10m_styropor_pos2_0/stereo/merged.txt", \
              "data/doppel_paket/seq_6.5m_empty_room_0/stereo/1611243765.143.txt", \
              "data/doppel_paket/seq_6.5m_empty_room_0/stereo/merged.txt", \
-             "data/doppel_paket/seq_10m_styropor_pos1_0/stereo/merged.txt", \
-             "data/doppel_paket/seq_10m_styropor_pos2_0/stereo/merged.txt"
+
     object_stereo = "data/doppel_paket/seq_6.5m_pos1_0/stereo/1611244400.579.txt", \
+                    "data/doppel_paket/seq_10m_pos1_0/stereo/merged.txt", \
+                    "data/doppel_paket/seq_10m_pos2_0/stereo/merged.txt", \
                     "data/doppel_paket/seq_6.5m_pos2_0/stereo/1611244497.982.txt", \
                     "data/doppel_paket/seq_6.5m_pos2_0/stereo/merged.txt", \
-                    "data/doppel_paket/seq_10m_pos1_0/stereo/merged.txt", \
-                    "data/doppel_paket/seq_10m_pos2_0/stereo/merged.txt"
 
-    lidar = lidar[:2]
-    object_lidar = object_lidar[:2]
-    stereo = stereo[:2]
-    object_stereo = object_stereo[:2]
+    lidar = lidar[:1]
+    object_lidar = object_lidar[:1]
+    stereo = stereo[:1]
+    object_stereo = object_stereo[:1]
     s_all_l = s_all_s = inliers_l = inliers_s = np.empty((0, 3))
     for i in range(len(lidar)):
         """
@@ -671,7 +658,7 @@ if __name__ == "__main__":
         crop_lidar = [5, 8, -1.5, 2, -0.5, 1]
         crop_lidar_10m = [10, 11.5, 0, 1, 0, 1]
         threshold = -0.5
-        if i >= 2:
+        if i >= 1:
             threshold = 0
         """
         remove_points can be changed to remove_points_extended for cropping of x, y and z axles
@@ -703,20 +690,20 @@ if __name__ == "__main__":
     """
     Show point clouds before icp
     """
-    if debug:
-        inliers1_l = inlier_trace(inliers_l, "Lidar", "green")
-        inliers1_s = inlier_trace(inliers_s, "Stereo", "orange")
+    # if debug:
+    #inliers1_l = getTrace(inliers_l[:, 0], inliers_l[:, 1], inliers_l[:, 2], s=4, label="Lidar", c="green")
+    #inliers1_s = getTrace(inliers_s[:, 0], inliers_s[:, 1], inliers_s[:, 2], s=4, label="Stereo", c="orange")
 
-        schnittpunkt1l = getTrace(s_all_l[:, 0], s_all_l[:, 1], s_all_l[:, 2], s=6, c='blue',
-                                  label=f'S: Lidar')
+    schnittpunkt1l = getTrace(s_all_l[:, 0], s_all_l[:, 1], s_all_l[:, 2], s=6, c='blue',
+                              label=f'S: Lidar')
 
-        schnittpunkt1s = getTrace(s_all_s[:, 0], s_all_s[:, 1], s_all_s[:, 2], s=6, c='red',
-                                  label=f'S: Stereo')
-        showGraph(
-            "Point Clouds",
-            "Z", "X", "Y",
-            [schnittpunkt1l, inliers1_l,
-             schnittpunkt1s, inliers1_s])
+    schnittpunkt1s = getTrace(s_all_s[:, 0], s_all_s[:, 1], s_all_s[:, 2], s=6, c='red',
+                              label=f'S: Stereo')
+    showGraph(
+        "Point Clouds",
+        "Z", "X", "Y",
+        [schnittpunkt1l, schnittpunkt1s]) #inliers1_l,
+        # schnittpunkt1s, inliers1_s])
 
     """ Compute center of mass and singular value decomposition """
     rotation, translation = icp(s_all_l, s_all_s)
@@ -734,8 +721,8 @@ if __name__ == "__main__":
         l1, l2, l3 = drawIntersectionLines(s_all_l, "Lidar", "lightsteelblue")
         s1, s2, s3 = drawIntersectionLines(s_all_s, "Stereo", "salmon")
         """ Build trace for plotly """
-        inliers_l = inlier_trace(inliers_l, "Lidar", "green")
-        inliers_s = inlier_trace(inliers_s, "Stereo", "orange")
+        inliers_l = getTrace(inliers_l[:, 0], inliers_l[:, 1], inliers_l[:, 2], s=4, label="Lidar", c="green")
+        inliers_s = getTrace(inliers_s[:, 0], inliers_s[:, 1], inliers_s[:, 2], s=4, label="Stereo", c="orange")
 
         schnittpunkt1l = getTrace(s_all_l[:, 0], s_all_l[:, 1], s_all_l[:, 2], s=6, c='blue',
                                   label=f'S: Lidar')
