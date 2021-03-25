@@ -629,13 +629,13 @@ if __name__ == "__main__":
              "data/doppel_paket/seq_10m_styropor_pos2_0/stereo/merged.txt", \
              "data/doppel_paket/seq_6.5m_empty_room_0/stereo/1611243765.143.txt", \
              "data/doppel_paket/seq_6.5m_empty_room_0/stereo/merged.txt", \
-
+ \
     object_stereo = "data/doppel_paket/seq_6.5m_pos1_0/stereo/1611244400.579.txt", \
                     "data/doppel_paket/seq_10m_pos1_0/stereo/merged.txt", \
                     "data/doppel_paket/seq_10m_pos2_0/stereo/merged.txt", \
                     "data/doppel_paket/seq_6.5m_pos2_0/stereo/1611244497.982.txt", \
                     "data/doppel_paket/seq_6.5m_pos2_0/stereo/merged.txt", \
-
+ \
     lidar = lidar[:1]
     object_lidar = object_lidar[:1]
     stereo = stereo[:1]
@@ -690,20 +690,20 @@ if __name__ == "__main__":
     """
     Show point clouds before icp
     """
-    # if debug:
-    #inliers1_l = getTrace(inliers_l[:, 0], inliers_l[:, 1], inliers_l[:, 2], s=4, label="Lidar", c="green")
-    #inliers1_s = getTrace(inliers_s[:, 0], inliers_s[:, 1], inliers_s[:, 2], s=4, label="Stereo", c="orange")
+    if debug:
+        inliers1_l = getTrace(inliers_l[:, 0], inliers_l[:, 1], inliers_l[:, 2], s=4, label="Lidar", c="green")
+        inliers1_s = getTrace(inliers_s[:, 0], inliers_s[:, 1], inliers_s[:, 2], s=4, label="Stereo", c="orange")
 
-    schnittpunkt1l = getTrace(s_all_l[:, 0], s_all_l[:, 1], s_all_l[:, 2], s=6, c='blue',
-                              label=f'S: Lidar')
+        schnittpunkt1l = getTrace(s_all_l[:, 0], s_all_l[:, 1], s_all_l[:, 2], s=6, c='blue',
+                                  label=f'S: Lidar')
 
-    schnittpunkt1s = getTrace(s_all_s[:, 0], s_all_s[:, 1], s_all_s[:, 2], s=6, c='red',
-                              label=f'S: Stereo')
-    showGraph(
-        "Point Clouds",
-        "Z", "X", "Y",
-        [schnittpunkt1l, schnittpunkt1s]) #inliers1_l,
-        # schnittpunkt1s, inliers1_s])
+        schnittpunkt1s = getTrace(s_all_s[:, 0], s_all_s[:, 1], s_all_s[:, 2], s=6, c='red',
+                                  label=f'S: Stereo')
+        showGraph(
+            "Point Clouds",
+            "Z", "X", "Y",
+            [schnittpunkt1l, inliers1_l,
+             schnittpunkt1s, inliers1_s])
 
     """ Compute center of mass and singular value decomposition """
     rotation, translation = icp(s_all_l, s_all_s)
