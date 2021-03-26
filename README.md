@@ -3,13 +3,12 @@ In der Bachelorarbeit soll ein Algorithmus entwickelt werden zur automatischen D
 
 ### main.py ###
 Bevor das Programm gestartet werden kann müssen ein paar Anpassungen
-vorgenommen werden:
-1. Datenpfade für Lidar und Stereo Daten eintragen. Es können mehrere Daten
-gleichzeitig eingetragen werden. 
-2. Die Werte für remove_points müssen angepasst werden, hier reicht meistens das löschen aller
-Werte für y < 0. Eventuell ist aber etwas ausprobieren nötig. Falls auch Werte der x- oder z-Achse 
-   mit in das Ausschneiden einbezogen werden sollen, sollte remove_points durch remove_points_extended
-   ersetzt werden.
+vorgenommen werden:\
+Datenpfade für Lidar und Stereo Daten eintragen. Es können mehrere Daten
+gleichzeitig eingetragen werden. Wenn mehrere Dateien eintragen werden müssen diese
+mit , miteinander verbunden werden. Dann muss ebenfalls die Zeile 643 (Variable v)
+ersetzt werden durch die Anzahl an Dateien + 1.
+
 
 #### Options ####
 ````
@@ -20,12 +19,13 @@ Werte für y < 0. Eventuell ist aber etwas ausprobieren nötig. Falls auch Werte
                         (Default: 0.05)
 -rl --ransac_lidar:     Threshold for Ransac - Lidar (Default: 0.01)
 -rs --ransac_stereo:    Threshold for Ransac - Stereo (Default: 0.004)
+-cr --crop:             Value for cropping data in y-axle
 ````
 
 
 ### merge_files.py ###
 Um mehrere .pcd und .txt Dateien miteinander zu verbinden, 
-muss merge_files.py aufgerufen werden. Es wird ein Explorerfenster 
+muss merge_files.py aufgerufen werden. Es wird ein Datei-Explorerfenster 
 geöffnet, bei dem die zweitoberste Ebene ausgewählt werden muss
 (wenn die pcd Daten z.B. in paket/seq1/lidar liegen, muss paket ausgewählt werden).
 Das Programm durchsucht dann alle Ebenen und fasst die pcd Dateien 

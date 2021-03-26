@@ -603,8 +603,11 @@ if __name__ == "__main__":
                         default=0.01, type=float)
     parser.add_argument("-rs", "--ransac_stereo", help="Value for Ransac Threshold for Stereo",
                         default=0.004, type=float)
+    parser.add_argument("-cr", "--crop", help="Value for cropping the data in y-axle",
+                        default=0.5, type=float)
     args = parser.parse_args()
     debug = args.debug
+    threshold = args.crop
     """
     Lidar Data, have to be changed
     """
@@ -634,10 +637,17 @@ if __name__ == "__main__":
                     "data/doppel_paket/seq_10m_pos2_0/stereo/merged.txt", \
                     "data/doppel_paket/seq_6.5m_pos2_0/stereo/1611244497.982.txt", \
                     "data/doppel_paket/seq_6.5m_pos2_0/stereo/merged.txt"
-    lidar = lidar[:1]
-    object_lidar = object_lidar[:1]
-    stereo = stereo[:1]
-    object_stereo = object_stereo[:1]
+
+    """ Change value for using more than one data"""
+    """"""
+    v = 1
+    """"""
+
+    lidar = lidar[:v]
+    object_lidar = object_lidar[:v]
+    stereo = stereo[:v]
+    object_stereo = object_stereo[:v]
+
     s_all_l = s_all_s = inliers_l = inliers_s = np.empty((0, 3))
     for i in range(len(lidar)):
         """
@@ -655,7 +665,11 @@ if __name__ == "__main__":
         """ Cropping of data if necessary """
         crop_lidar = [5, 8, -1.5, 2, -0.5, 1]
         crop_lidar_10m = [10, 11.5, 0, 1, 0, 1]
-        threshold = -0.5
+
+        """ Threshold for cropping in y-axle
+            -0.5 for 6.5m
+            0 for 10m
+        """
         if i >= 1:
             threshold = 0
         """
