@@ -628,14 +628,12 @@ if __name__ == "__main__":
              "data/doppel_paket/seq_10m_styropor_pos1_0/stereo/merged.txt", \
              "data/doppel_paket/seq_10m_styropor_pos2_0/stereo/merged.txt", \
              "data/doppel_paket/seq_6.5m_empty_room_0/stereo/1611243765.143.txt", \
-             "data/doppel_paket/seq_6.5m_empty_room_0/stereo/merged.txt", \
- \
+             "data/doppel_paket/seq_6.5m_empty_room_0/stereo/merged.txt"
     object_stereo = "data/doppel_paket/seq_6.5m_pos1_0/stereo/1611244400.579.txt", \
                     "data/doppel_paket/seq_10m_pos1_0/stereo/merged.txt", \
                     "data/doppel_paket/seq_10m_pos2_0/stereo/merged.txt", \
                     "data/doppel_paket/seq_6.5m_pos2_0/stereo/1611244497.982.txt", \
-                    "data/doppel_paket/seq_6.5m_pos2_0/stereo/merged.txt", \
- \
+                    "data/doppel_paket/seq_6.5m_pos2_0/stereo/merged.txt"
     lidar = lidar[:1]
     object_lidar = object_lidar[:1]
     stereo = stereo[:1]

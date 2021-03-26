@@ -15,7 +15,7 @@ Werte für y < 0. Eventuell ist aber etwas ausprobieren nötig. Falls auch Werte
 ````
 -d --Debug: Debug on
 -dl --distance_lidar:   Threshold for Distance Compute Function for Lidar
-                        (Default: 0.05)
+                        (Default: 0.1)
 -ds --distance_stereo:  Threshold for Distance Compute Function for Stereo
                         (Default: 0.05)
 -rl --ransac_lidar:     Threshold for Ransac - Lidar (Default: 0.01)
