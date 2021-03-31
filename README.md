@@ -11,7 +11,7 @@ Im nachfolgenden Bild ist das verwendete Koordinatensystem zu sehen:\
 ![Koordinatensystem](alpha_coordinate_2.png)
 \
 Zum Schluss sollten noch die Maße für das Paket angegeben werden, eine Übersicht ist im folgenden Bild zu sehen:\
-![Paketmaße](https://git.ios.htwg-konstanz.de/mof-sprojekte/ba-matthias-deberling/master/paket_2.png)
+![Paketmaße](paket_2.png)
 \
 Wichtig ist, dass die Seiten fest sind. Wenn das Paket also anders als in der Grafik
 aufgestellt wird, sollten die Maße so eingetragen werden.
