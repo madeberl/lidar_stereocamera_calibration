@@ -443,15 +443,18 @@ def equation(plane_x, plane_y, plane_z, plane_):
     while plane_name == "":
         if plane_x > 0 and plane_y > 0 and plane_z > 0:
             plane_name = "Right"
+            break
         elif plane_x < 0 and plane_z > 0:
             plane_name = "Top"
+            break
         elif plane_x < 0 and plane_z < 0:
             plane_name = "Left"
-        plane_x = plane_x * -1
-        plane_y = plane_y * -1
-        plane_z = plane_z * -1
-        plane_ = plane_ * -1
-
+            break
+        else:
+            plane_x = plane_x * -1
+            plane_y = plane_y * -1
+            plane_z = plane_z * -1
+            plane_ = plane_ * -1
     return plane_name, [plane_x, plane_y, plane_z, plane_]
 
 
@@ -607,7 +610,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--debug", action="store_true", help="Debug on/off")
     parser.add_argument("-dl", "--distance_lidar", help="Value for Distance Computing for Lidar",
-                        default=0.03, type=float)
+                        default=0.1, type=float)
     parser.add_argument("-ds", "--distance_stereo", help="Value for Distance Computing for Stereo",
                         default=0.05, type=float)
     parser.add_argument("-rl", "--ransac_lidar", help="Value for Ransac Threshold for Lidar",
