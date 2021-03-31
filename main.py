@@ -11,7 +11,7 @@ from sklearn.cluster import KMeans
 global debug
 
 
-def main(pcd, pcd_object, threshold, name, threshold_ransac):
+def main(pcd, pcd_object, threshold, name, threshold_ransac, length, width, height):
     object_isolated = compute_distance(pcd, pcd_object, threshold, name)  # remove points appearing in both data
 
     normals_estimated = normal_estimation(object_isolated)  # estimate normals
@@ -39,7 +39,6 @@ def main(pcd, pcd_object, threshold, name, threshold_ransac):
     plane_model_a = np.divide(np.sum(plane_model_a, axis=0), len(x))
     plane_model_b = np.divide(np.sum(plane_model_b, axis=0), len(x))
     plane_model_c = np.divide(np.sum(plane_model_c, axis=0), len(x))
-
     if debug:
         inl1 = getTrace(a_in[:, 0], a_in[:, 1], a_in[:, 2], c="green", s=4, label=f"{plane_name_a} inliers")
         inl2 = getTrace(b_in[:, 0], b_in[:, 1], b_in[:, 2], c="green", s=4, label=f"{plane_name_b} inliers")
@@ -75,6 +74,14 @@ def main(pcd, pcd_object, threshold, name, threshold_ransac):
 
     inliers = np.concatenate((t_in, l_in, r_in))
 
+    if debug:
+        print(f"Plane equation top: {plane_model_t[0]:.2f}x + {plane_model_t[1]:.2f}y "
+              f"+ {plane_model_t[2]:.2f}z + {plane_model_t[3]:.2f} = 0")
+        print(f"Plane equation left: {plane_model_l[0]:.2f}x + {plane_model_l[1]:.2f}y "
+              f"+ {plane_model_l[2]:.2f}z + {plane_model_l[3]:.2f} = 0")
+        print(f"Plane equation right: {plane_model_r[0]:.2f}x + {plane_model_r[1]:.2f}y "
+              f"+ {plane_model_r[2]:.2f}z + {plane_model_r[3]:.2f} = 0")
+
     """
     Find intersections line
     """
@@ -88,17 +95,17 @@ def main(pcd, pcd_object, threshold, name, threshold_ransac):
     """ Intersection of all 3 planes """
     schnittpunkt = finde_intersection(plane_model_r, plane_model_l, plane_model_t, "Schnittpunkt 1")
     """ Intersection down """
-    schnittpunkt2 = intersection(vektor_rl, 0.4, schnittpunkt)
+    schnittpunkt2 = intersection(vektor_rl, height, schnittpunkt)
     """ Intersection right top """
-    schnittpunkt3 = intersection(vektor_rt, -0.35, schnittpunkt)
+    schnittpunkt3 = intersection(vektor_rt, -width, schnittpunkt)
     """ Intersection left top """
-    schnittpunkt4 = intersection(vektor_lt, -0.45, schnittpunkt)
+    schnittpunkt4 = intersection(vektor_lt, -length, schnittpunkt)
     """ Intersection back top """
-    schnittpunkt5 = intersection(vektor_lt, -0.45, schnittpunkt3)
+    schnittpunkt5 = intersection(vektor_lt, -length, schnittpunkt3)
     """ Intersection right down """
-    schnittpunkt6 = intersection(vektor_rt, -0.35, schnittpunkt2)
+    schnittpunkt6 = intersection(vektor_rt, -width, schnittpunkt2)
     """ Intersection left down """
-    schnittpunkt7 = intersection(vektor_lt, -0.45, schnittpunkt2)
+    schnittpunkt7 = intersection(vektor_lt, -length, schnittpunkt2)
     s_all = np.concatenate((schnittpunkt, schnittpunkt2, schnittpunkt3, schnittpunkt4, schnittpunkt5, schnittpunkt6,
                             schnittpunkt7))
     if debug:
@@ -321,7 +328,7 @@ def normal_estimation(downpcd):
     downpcd.normals = o3d.utility.Vector3dVector(np.zeros((1, 3)))
     downpcd.estimate_normals(
         search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=50))
-    downpcd.orient_normals_consistent_tangent_plane(200)
+    downpcd.orient_normals_towards_camera_location()
     if debug:
         showPointCloud(downpcd, "Normals", True)
     return downpcd
@@ -379,15 +386,13 @@ def ransac(plane, threshold, n, i):
                                                ransac_n=n,
                                                num_iterations=i)
     [a, b, c, d] = plane_model
-    name = equation(a, b, c)
-    # if debug:
-    # print(f"Plane equation {name}: {a:.2f}x + {b:.2f}y + {c:.2f}z + {d:.2f} = 0")
+    name, [a, b, c, d] = equation(a, b, c, d)
     inlier_cloud = plane.select_by_index(inliers)
     outlier_cloud = plane.select_by_index(inliers, invert=True)
     inlier_cloud = np.asarray(inlier_cloud.points)
     outlier_cloud = np.asarray(outlier_cloud.points)
 
-    return inlier_cloud, outlier_cloud, np.array([[a, b, c, d]]), name  # np.array([[a, b, c, d]])
+    return inlier_cloud, outlier_cloud, np.array([[a, b, c, d]]), name
 
 
 def icp(l_all, s_all):
@@ -426,7 +431,7 @@ def intersection(equation, cm, intersect):
     return s_shape
 
 
-def equation(plane_x, plane_y, plane_z):
+def equation(plane_x, plane_y, plane_z, plane_):
     """
     Gets side of given plane
     :param plane_x: numpy array, x-value of plane equation
@@ -435,13 +440,19 @@ def equation(plane_x, plane_y, plane_z):
     :return: plane name as string
     """
     plane_name = ""
-    if plane_x > 0 and plane_y > 0 and plane_z > 0:
-        plane_name = "Right"
-    elif plane_x < 0 and plane_z > 0:
-        plane_name = "Top"
-    elif plane_x < 0 and plane_z < 0:
-        plane_name = "Left"
-    return plane_name
+    while plane_name == "":
+        if plane_x > 0 and plane_y > 0 and plane_z > 0:
+            plane_name = "Right"
+        elif plane_x < 0 and plane_z > 0:
+            plane_name = "Top"
+        elif plane_x < 0 and plane_z < 0:
+            plane_name = "Left"
+        plane_x = plane_x * -1
+        plane_y = plane_y * -1
+        plane_z = plane_z * -1
+        plane_ = plane_ * -1
+
+    return plane_name, [plane_x, plane_y, plane_z, plane_]
 
 
 def finde_intersection(plane1, plane2, plane3, name):
@@ -596,57 +607,42 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--debug", action="store_true", help="Debug on/off")
     parser.add_argument("-dl", "--distance_lidar", help="Value for Distance Computing for Lidar",
-                        default=0.1, type=float)
+                        default=0.03, type=float)
     parser.add_argument("-ds", "--distance_stereo", help="Value for Distance Computing for Stereo",
                         default=0.05, type=float)
     parser.add_argument("-rl", "--ransac_lidar", help="Value for Ransac Threshold for Lidar",
                         default=0.01, type=float)
     parser.add_argument("-rs", "--ransac_stereo", help="Value for Ransac Threshold for Stereo",
                         default=0.004, type=float)
-    parser.add_argument("-cr", "--crop", help="Value for cropping the data in y-axle",
-                        default=0.5, type=float)
+    parser.add_argument("-xmin", "--x_minimum", help="Minimum value for cropping in x-direction",
+                        default=5, type=float)
+    parser.add_argument("-xmax", "--x_maximum", help="Maximum value for cropping in x-direction",
+                        default=8, type=float)
+    parser.add_argument("-ymin", "--y_minimum", help="Minimum value for cropping in y-direction",
+                        default=-1.5, type=float)
+    parser.add_argument("-ymax", "--y_maximum", help="Maximum value for cropping in y-direction",
+                        default=2, type=float)
+    parser.add_argument("-zmin", "--z_minimum", help="Minimum value for cropping in z-direction",
+                        default=-1, type=float)
+    parser.add_argument("-zmax", "--z_maximum", help="Maximum value for cropping in z-direction",
+                        default=1, type=float)
+    parser.add_argument("-l", "--length", help="Length of the packet", default=0.45, type=float)
+    parser.add_argument("-w", "--width", help="Width of the packet", default=0.35, type=float)
+    parser.add_argument("-he", "--height", help="Height of the packet", default=0.4, type=float)
     args = parser.parse_args()
     debug = args.debug
-    threshold = args.crop
     """
     Lidar Data, have to be changed
     """
-    lidar = "data/doppel_paket/seq_6.5m_styropor_pos1_0/lidar/1611244442.622.pcd", \
-            "data/doppel_paket/seq_10m_styropor_pos1_0/lidar/merged.pcd", \
-            "data/doppel_paket/seq_10m_styropor_pos2_0/lidar/merged.pcd", \
-            "data/doppel_paket/seq_6.5m_empty_room_0/lidar/1611243759.606.pcd", \
-            "data/doppel_paket/seq_6.5m_styropor_pos1_0/lidar/merged.pcd", \
-            "data/doppel_paket/seq_6.5m_empty_room_0/lidar/merged.pcd"
+    lidar = ["data/stuhl.pcd"]
 
-    object_lidar = "data/doppel_paket/seq_6.5m_pos1_0/lidar/1611244398.218.pcd", \
-                   "data/doppel_paket/seq_10m_pos1_0/lidar/merged.pcd", \
-                   "data/doppel_paket/seq_10m_pos2_0/lidar/merged.pcd", \
-                   "data/doppel_paket/seq_6.5m_pos2_0/lidar/1611244495.292.pcd", \
-                   "data/doppel_paket/seq_6.5m_pos2_0/lidar/merged.pcd"
+    object_lidar = ["data/packet.pcd"]
 
     """
     Stereo Data, have to be changed
     """
-    stereo = "data/doppel_paket/seq_6.5m_styropor_pos1_0/stereo/1611244446.276.txt", \
-             "data/doppel_paket/seq_10m_styropor_pos1_0/stereo/merged.txt", \
-             "data/doppel_paket/seq_10m_styropor_pos2_0/stereo/merged.txt", \
-             "data/doppel_paket/seq_6.5m_empty_room_0/stereo/1611243765.143.txt", \
-             "data/doppel_paket/seq_6.5m_empty_room_0/stereo/merged.txt"
-    object_stereo = "data/doppel_paket/seq_6.5m_pos1_0/stereo/1611244400.579.txt", \
-                    "data/doppel_paket/seq_10m_pos1_0/stereo/merged.txt", \
-                    "data/doppel_paket/seq_10m_pos2_0/stereo/merged.txt", \
-                    "data/doppel_paket/seq_6.5m_pos2_0/stereo/1611244497.982.txt", \
-                    "data/doppel_paket/seq_6.5m_pos2_0/stereo/merged.txt"
-
-    """ Change value for using more than one data"""
-    """"""
-    v = 1
-    """"""
-
-    lidar = lidar[:v]
-    object_lidar = object_lidar[:v]
-    stereo = stereo[:v]
-    object_stereo = object_stereo[:v]
+    stereo = ["data/stuhl.txt"]
+    object_stereo = ["data/packet.txt"]
 
     s_all_l = s_all_s = inliers_l = inliers_s = np.empty((0, 3))
     for i in range(len(lidar)):
@@ -663,20 +659,13 @@ if __name__ == "__main__":
         file_object_stereo = o3d.io.read_point_cloud(object_stereo[i], format='xyzrgb')
 
         """ Cropping of data if necessary """
-        crop_lidar = [5, 8, -1.5, 2, -0.5, 1]
-        crop_lidar_10m = [10, 11.5, 0, 1, 0, 1]
+        crop = [args.x_minimum, args.x_maximum, args.y_minimum, args.y_maximum, args.z_minimum, args.z_maximum]
 
-        """ Threshold for cropping in y-axle
-            -0.5 for 6.5m
-            0 for 10m
-        """
-        if i >= 1:
-            threshold = 0
         """
         remove_points can be changed to remove_points_extended for cropping of x, y and z axles
         """
-        file_lidar = remove_points(file_lidar, threshold)
-        file_object_lidar = remove_points(file_object_lidar, threshold)
+        file_lidar = remove_points_extended(file_lidar, crop)
+        file_object_lidar = remove_points_extended(file_object_lidar, crop)
 
         """
         Transform Stereodata to Lidar coordinate system
@@ -684,17 +673,17 @@ if __name__ == "__main__":
         file_stereo_t = transform_stereo(file_stereo)
         file_object_stereo_t = transform_stereo(file_object_stereo)
 
-        file_stereo_c = remove_points(file_stereo_t, threshold)
-        file_object_stereo_c = remove_points(file_object_stereo_t, threshold)
+        file_stereo_c = remove_points_extended(file_stereo_t, crop)
+        file_object_stereo_c = remove_points_extended(file_object_stereo_t, crop)
 
         """ Run main on Lidar and Stereo """
         s_all_l_, inliers_l_ = main(file_lidar, file_object_lidar, args.distance_lidar,
-                                    "Lidar", args.ransac_lidar)
+                                    "Lidar", args.ransac_lidar, args.length, args.width, args.height)
         s_all_l = np.append(s_all_l, s_all_l_, axis=0)
         inliers_l = np.append(inliers_l, inliers_l_, axis=0)
         print("Lidar finished")
         s_all_s_, inliers_s_ = main(file_stereo_c, file_object_stereo_c, args.distance_stereo,
-                                    "Stereo", args.ransac_stereo)
+                                    "Stereo", args.ransac_stereo, args.length, args.width, args.height)
         s_all_s = np.append(s_all_s, s_all_s_, axis=0)
         inliers_s = np.append(inliers_s, inliers_s_, axis=0)
         print("Stereo finished")

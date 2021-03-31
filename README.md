@@ -4,22 +4,39 @@ In der Bachelorarbeit soll ein Algorithmus entwickelt werden zur automatischen D
 ### main.py ###
 Bevor das Programm gestartet werden kann müssen ein paar Anpassungen
 vorgenommen werden:\
-Datenpfade für Lidar und Stereo Daten eintragen. Es können mehrere Daten
-gleichzeitig eingetragen werden. Wenn mehrere Dateien eintragen werden müssen diese
-mit , miteinander verbunden werden. Dann muss ebenfalls die Zeile 643 (Variable v)
-ersetzt werden durch die Anzahl an Dateien + 1.
-
-
+Es müssen die Datenpfade für Lidar und Stereo Daten als Liste im Format ````["data"] ````eintragen werden. 
+Es können mehrere Daten gleichzeitig eingetragen werden, dann die Datensätze Komma-separiert eintragen. 
+Zusätzlich ist es ratsam die Daten vorzubeschneiden, dafür werden die Argumente unten verwendet.
+Im nachfolgenden Bild ist das verwendete Koordinatensystem zu sehen:\
+![Koordinatensystem](C:\Users\Matthias\Dokumente\HTWG Konstanz\AIN\Bachelorarbeit\Bachelorarbeit\pictures\alpha_coordinate_2.png)
+\
+Zum Schluss sollten noch die Maße für das Paket angegeben werden, eine Übersicht ist im folgenden Bild zu sehen:\
+![Paketmaße](C:\Users\Matthias\Dokumente\HTWG Konstanz\AIN\Bachelorarbeit\Bachelorarbeit\pictures\paket_2.png)
+\
+Wichtig ist, dass die Seiten fest sind. Wenn das Paket also anders als in der Grafik
+aufgestellt wird, sollten die Maße so eingetragen werden.
 #### Options ####
 ````
 -d --Debug: Debug on
--dl --distance_lidar:   Threshold for Distance Compute Function for Lidar
+---------------------------------------------------------------------------
+-dl --distance_lidar    Threshold for Distance Compute Function for Lidar
                         (Default: 0.1)
--ds --distance_stereo:  Threshold for Distance Compute Function for Stereo
+-ds --distance_stereo   Threshold for Distance Compute Function for Stereo
                         (Default: 0.05)
--rl --ransac_lidar:     Threshold for Ransac - Lidar (Default: 0.01)
--rs --ransac_stereo:    Threshold for Ransac - Stereo (Default: 0.004)
--cr --crop:             Value for cropping data in y-axle
+---------------------------------------------------------------------------
+-rl --ransac_lidar      Threshold for Ransac - Lidar (Default: 0.01)
+-rs --ransac_stereo     Threshold for Ransac - Stereo (Default: 0.004)
+---------------------------------------------------------------------------
+-xmin --x_minimum       Minimum value for cropping in x-direction
+-xmax --x_maximum       Maximum value for cropping in x-direction
+-ymin --y_minimum       Minimum value for cropping in y-direction
+-ymax --y_maximum       Maximum value for cropping in y-direction
+-zmin --z_minimum       Minimum value for cropping in z-direction
+-zmax --z_maximum       Maximum value for cropping in z-direction
+---------------------------------------------------------------------------
+-l --length             Length of paket (Default: 0.45)
+-w --width              Width of paket (Default: 0.35)
+-he --height             Height of paket (Default: 0.4)
 ````
 
 
