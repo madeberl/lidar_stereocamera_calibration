@@ -7,6 +7,8 @@ import open3d as o3d
 import plotly.graph_objs as go
 from scipy.spatial import distance
 from sklearn.cluster import KMeans
+from scipy.spatial.transform import Rotation
+import os
 
 global debug
 
@@ -412,7 +414,8 @@ def icp(l_all, s_all):
     u_l, s_l, vh_l = np.linalg.svd(w)
     r = np.dot(u_l, vh_l)
     t = np.subtract(mass_center_l, np.dot(r, mass_center_s))
-    print("r", r)
+    print("r_matrix", r)
+    print("r_quat", Rotation.from_matrix(r).as_quat())
     print("t", t)
     return r, t
 
@@ -632,20 +635,46 @@ if __name__ == "__main__":
     parser.add_argument("-l", "--length", help="Length of the packet", default=0.45, type=float)
     parser.add_argument("-w", "--width", help="Width of the packet", default=0.35, type=float)
     parser.add_argument("-he", "--height", help="Height of the packet", default=0.4, type=float)
+    parser.add_argument("-p", "--path", help="path to data", default="", type=str)
     args = parser.parse_args()
     debug = args.debug
     """
     Lidar Data, have to be changed
     """
-    lidar = ["data/stuhl.pcd"]
+    # lidar = ["data/stuhl.pcd"]
 
-    object_lidar = ["data/packet.pcd"]
+    # object_lidar = ["data/packet.pcd"]
 
-    """
-    Stereo Data, have to be changed
-    """
-    stereo = ["data/stuhl.txt"]
-    object_stereo = ["data/packet.txt"]
+    # """
+    # Stereo Data, have to be changed
+    # """
+    # stereo = ["data/stuhl.txt"]
+    # object_stereo = ["data/packet.txt"]
+    if args.path == "":
+        lidar = ["/home/dennis/git_repos/multisenselakeperceptor/tools/velodyne_stereo_calib/lidar_empty.txt", "/home/dennis/git_repos/multisenselakeperceptor/tools/velodyne_stereo_calib/lidar_empty.txt"]
+        object_lidar = ["/home/dennis/git_repos/multisenselakeperceptor/tools/velodyne_stereo_calib/lidar_ob_1.txt", "/home/dennis/git_repos/multisenselakeperceptor/tools/velodyne_stereo_calib/lidar_ob_2.txt"]
+
+        stereo = ["/home/dennis/git_repos/multisenselakeperceptor/tools/velodyne_stereo_calib/stereo_empty.txt", "/home/dennis/git_repos/multisenselakeperceptor/tools/velodyne_stereo_calib/stereo_empty.txt"]
+        object_stereo = ["/home/dennis/git_repos/multisenselakeperceptor/tools/velodyne_stereo_calib/stereo_ob_1.txt", "/home/dennis/git_repos/multisenselakeperceptor/tools/velodyne_stereo_calib/stereo_ob_2.txt"]
+    else:
+        # lidar_path = os.path.join(args.path, "lidar")
+        # lidar_elements = sorted(os.listdir(lidar_path))
+        # object_lidar = []
+        # for i in range(1, len(lidar_elements)):
+        #     object_lidar.append(os.path.join(lidar_path, lidar_elements[i]))
+        # lidar = []
+        # for i in range(len(lidar_elements)-1):
+        #     lidar.append(os.path.join(lidar_path, lidar_elements[0]))
+
+        stereo_path = os.path.join(args.path, "stereo")
+        stereo_elements = sorted(os.listdir(stereo_path))
+        object_stereo = []
+        for i in range(1, len(stereo_elements)):
+            object_stereo.append(os.path.join(stereo_path, stereo_elements[i]))
+        stereo = []
+        for i in range(len(stereo_elements)-1):
+            stereo.append(os.path.join(stereo_path, stereo_elements[0]))
+
 
     s_all_l = s_all_s = inliers_l = inliers_s = np.empty((0, 3))
     for i in range(len(lidar)):
@@ -653,9 +682,9 @@ if __name__ == "__main__":
         Read Data
         """
         print("Read data from", lidar[i])
-        file_lidar = o3d.io.read_point_cloud(lidar[i], format='auto')
+        file_lidar = o3d.io.read_point_cloud(lidar[i], format='xyz')
         print("Read data from", object_lidar[i])
-        file_object_lidar = o3d.io.read_point_cloud(object_lidar[i], format='auto')
+        file_object_lidar = o3d.io.read_point_cloud(object_lidar[i], format='xyz')
         print("Read data from", stereo[i])
         file_stereo = o3d.io.read_point_cloud(stereo[i], format='xyzrgb')
         print("Read data from", object_stereo[i])
