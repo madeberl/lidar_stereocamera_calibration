@@ -37,6 +37,7 @@ aufgestellt wird, sollten die Maße so eingetragen werden.
 -l --length             Length of paket (Default: 0.45)
 -w --width              Width of paket (Default: 0.35)
 -he --height            Height of paket (Default: 0.4)
+-p --path               path to directory which contains the pointclouds
 ````
 
 
