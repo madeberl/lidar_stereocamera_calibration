@@ -657,14 +657,14 @@ if __name__ == "__main__":
         stereo = ["/home/dennis/git_repos/multisenselakeperceptor/tools/velodyne_stereo_calib/stereo_empty.txt", "/home/dennis/git_repos/multisenselakeperceptor/tools/velodyne_stereo_calib/stereo_empty.txt"]
         object_stereo = ["/home/dennis/git_repos/multisenselakeperceptor/tools/velodyne_stereo_calib/stereo_ob_1.txt", "/home/dennis/git_repos/multisenselakeperceptor/tools/velodyne_stereo_calib/stereo_ob_2.txt"]
     else:
-        # lidar_path = os.path.join(args.path, "lidar")
-        # lidar_elements = sorted(os.listdir(lidar_path))
-        # object_lidar = []
-        # for i in range(1, len(lidar_elements)):
-        #     object_lidar.append(os.path.join(lidar_path, lidar_elements[i]))
-        # lidar = []
-        # for i in range(len(lidar_elements)-1):
-        #     lidar.append(os.path.join(lidar_path, lidar_elements[0]))
+        lidar_path = os.path.join(args.path, "lidar")
+        lidar_elements = sorted(os.listdir(lidar_path))
+        object_lidar = []
+        for i in range(1, len(lidar_elements)):
+            object_lidar.append(os.path.join(lidar_path, lidar_elements[i]))
+        lidar = []
+        for i in range(len(lidar_elements)-1):
+            lidar.append(os.path.join(lidar_path, lidar_elements[0]))
 
         stereo_path = os.path.join(args.path, "stereo")
         stereo_elements = sorted(os.listdir(stereo_path))
